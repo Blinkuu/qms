@@ -45,3 +45,6 @@ go.work
 release.properties
 pom.xml.releaseBackup
 pom.xml.tag
+
+# Env
+.env
