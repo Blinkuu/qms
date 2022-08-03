@@ -1,7 +1,7 @@
 package ping
 
 import (
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"testing"
 )
 
@@ -10,7 +10,7 @@ func TestNewService(t *testing.T) {
 	s := NewService()
 
 	// Then
-	assert.NotNil(t, s)
+	require.NotNil(t, s)
 }
 
 func TestService_Ping(t *testing.T) {
@@ -21,5 +21,5 @@ func TestService_Ping(t *testing.T) {
 	got := s.Ping()
 
 	// Then
-	assert.Equal(t, "Pong", got)
+	require.Equal(t, "pong", got)
 }
