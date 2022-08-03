@@ -7,5 +7,5 @@ func NewService() *Service {
 }
 
 func (s *Service) Ping() string {
-	return "Pong"
+	return "pong"
 }

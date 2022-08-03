@@ -1,13 +1,12 @@
 package helloworld
 
 import (
-    "testing"
-
-    "github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"testing"
 )
 
 func Test_HelloWorld(t *testing.T) {
-    got := HelloWorld()
+	got := HelloWorld()
 
-    assert.Equal(t, "Hello, World!", got)
+	require.Equal(t, "Hello, World!", got)
 }
