@@ -4,8 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	pingservice "github.com/Blinkuu/qms/internal/core/services/ping"
-	pinghandler "github.com/Blinkuu/qms/internal/handlers/ping"
+	"github.com/Blinkuu/qms/internal/core/services"
+	"github.com/Blinkuu/qms/internal/handlers"
 	"github.com/Blinkuu/qms/pkg/env"
 	"github.com/gorilla/mux"
 	"net/http"
@@ -23,8 +23,8 @@ func main() {
 }
 
 func run() error {
-	pingService := pingservice.NewService()
-	pingHandler := pinghandler.NewHTTPHandler(pingService)
+	pingService := services.NewPingService()
+	pingHandler := handlers.NewHTTPHandler(pingService)
 
 	router := mux.NewRouter()
 	v1ApiRouter := router.PathPrefix("/api/v1").Subrouter()
