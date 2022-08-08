@@ -1,0 +1,21 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: qms
+  labels:
+    app: qms
+spec:
+  replicas: 5
+  selector:
+    matchLabels:
+      app: qms
+  template:
+    metadata:
+      labels:
+        app: qms
+    spec:
+      containers:
+        - name: qms
+          image: qms
+          ports:
+            - containerPort: 6789
