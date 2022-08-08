@@ -1,4 +1,4 @@
-package ping
+package services
 
 import (
 	"github.com/stretchr/testify/require"
@@ -7,7 +7,7 @@ import (
 
 func TestNewService(t *testing.T) {
 	// When
-	s := NewService()
+	s := NewPingService()
 
 	// Then
 	require.NotNil(t, s)
@@ -15,7 +15,7 @@ func TestNewService(t *testing.T) {
 
 func TestService_Ping(t *testing.T) {
 	// Given
-	s := &Service{}
+	s := &PingService{}
 
 	// When
 	got := s.Ping()
