@@ -4,11 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/Blinkuu/qms/internal/core/services"
-	"github.com/Blinkuu/qms/internal/handlers"
-	"github.com/Blinkuu/qms/pkg/env"
-	"github.com/gorilla/mux"
-	"net/http"
+	"github.com/Blinkuu/qms/cmd/qms/app"
+	"github.com/spf13/viper"
+	"go.uber.org/zap"
 	"os"
 	"os/signal"
 	"syscall"
@@ -16,37 +14,36 @@ import (
 )
 
 func main() {
-	if err := run(); err != nil {
-		_, _ = fmt.Fprintf(os.Stderr, "%s\n", err)
+	logger := zap.Must(zap.NewDevelopment())
+
+	defer func() {
+		if err := logger.Sync(); err != nil && !errors.Is(err, syscall.ENOTTY) {
+			panic(err)
+		}
+	}()
+
+	logger.Info("starting qms")
+
+	config, err := loadConfig()
+	if err != nil {
+		panic(err)
+	}
+
+	a := app.New(logger, config)
+	if err := runAppAndWaitForSignal(a); err != nil {
+		logger.Error("failed to shutdown qms server", zap.Error(err))
+
 		os.Exit(1)
 	}
+
+	logger.Info("shutting down qms")
 }
 
-func run() error {
-	pingService := services.NewPingService()
-	pingHandler := handlers.NewHTTPHandler(pingService)
-
-	router := mux.NewRouter()
-	v1ApiRouter := router.PathPrefix("/api/v1").Subrouter()
-	v1ApiRouter.HandleFunc("/ping", pingHandler.Ping()).Methods(http.MethodGet)
-
-	s := &http.Server{
-		Addr:         ":" + env.GetOrDefault("PRIMARY_PORT", "6789"),
-		ReadTimeout:  10 * time.Second,
-		WriteTimeout: 10 * time.Second,
-		Handler:      router,
-	}
-
+func runAppAndWaitForSignal(app *app.App) error {
 	errChan := make(chan error)
 	go func() {
-		err := s.ListenAndServe()
-		switch {
-		case errors.Is(err, http.ErrServerClosed):
-			errChan <- nil
-		default:
-		}
-
-		errChan <- err
+		errChan <- app.Run()
+		close(errChan)
 	}()
 
 	sigChan := make(chan os.Signal, 1)
@@ -56,9 +53,25 @@ func run() error {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	if err := s.Shutdown(ctx); err != nil {
-		_, _ = fmt.Fprintf(os.Stderr, "%s\n", err)
+	if err := app.Shutdown(ctx); err != nil {
+		return fmt.Errorf("failed to shutdown app: %w", err)
 	}
 
 	return <-errChan
+}
+
+func loadConfig() (app.Config, error) {
+	viper.AddConfigPath("./configs")
+	viper.SetConfigName("config")
+	viper.SetConfigType("yaml")
+	if err := viper.ReadInConfig(); err != nil {
+		return app.Config{}, fmt.Errorf("failed to read in config: %w", err)
+	}
+
+	var config app.Config
+	if err := viper.Unmarshal(&config); err != nil {
+		return app.Config{}, fmt.Errorf("failed to unmarshal config: %w", err)
+	}
+
+	return config, nil
 }
