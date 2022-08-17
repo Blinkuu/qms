@@ -9,6 +9,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/benbjohnson/clock"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
 
@@ -31,7 +32,7 @@ func main() {
 		panic(err)
 	}
 
-	a := app.New(logger, config)
+	a := app.New(clock.New(), logger, config)
 	if err := runAppAndWaitForSignal(a); err != nil {
 		logger.Error("failed to shutdown qms server", zap.Error(err))
 

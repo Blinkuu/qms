@@ -1,9 +1,10 @@
 package math
 
 import (
-	"github.com/Blinkuu/qms/pkg/constraints"
+	"golang.org/x/exp/constraints" //nolint:all
 )
 
+//nolint:all
 func Min[T constraints.Ordered](values ...T) T {
 	if len(values) == 0 {
 		var zero T

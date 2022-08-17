@@ -16,21 +16,21 @@ func (m mockPingService) Ping() string {
 	return "pong"
 }
 
-func TestNewHTTPHandler(t *testing.T) {
+func TestNewPingHTTPHandler(t *testing.T) {
 	// Given
 	s := &mockPingService{}
 
 	// When
-	h := NewHTTPHandler(s)
+	h := NewPingHTTPHandler(s)
 
 	// Then
 	require.NotNil(t, h)
 }
 
-func TestHTTPHandler_Ping(t *testing.T) {
+func TestPingHTTPHandler_Ping(t *testing.T) {
 	// Given
 	s := mockPingService{}
-	httpHandler := &HTTPHandler{service: s}
+	httpHandler := &PingHTTPHandler{service: s}
 	handler := httpHandler.Ping()
 	respRecorder := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(""))
