@@ -4,13 +4,15 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/Blinkuu/qms/cmd/qms/app"
-	"github.com/spf13/viper"
-	"go.uber.org/zap"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
+
+	"github.com/spf13/viper"
+	"go.uber.org/zap"
+
+	"github.com/Blinkuu/qms/cmd/qms/app"
 )
 
 func main() {

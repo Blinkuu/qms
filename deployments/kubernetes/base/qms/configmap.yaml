@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: qms-config
+data:
+  config.yaml: |
+    http_port: 6789

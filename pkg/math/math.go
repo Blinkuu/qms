@@ -1,7 +1,7 @@
 package math
 
 import (
-	"golang.org/x/exp/constraints"
+	"github.com/Blinkuu/qms/pkg/constraints"
 )
 
 func Min[T constraints.Ordered](values ...T) T {
