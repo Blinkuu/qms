@@ -14,14 +14,16 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/Blinkuu/qms/cmd/qms/app"
+	"github.com/Blinkuu/qms/pkg/log"
 )
 
 func main() {
-	logger := zap.Must(zap.NewDevelopment())
-
+	logger := log.Must(log.NewZapLogger("qms", "debug", []string{"stderr"}))
 	defer func() {
-		if err := logger.Sync(); err != nil && !errors.Is(err, syscall.ENOTTY) {
-			panic(err)
+		err := logger.Close()
+		if err != nil && !errors.Is(err, syscall.ENOTTY) {
+			_, _ = fmt.Fprintf(os.Stderr, "failed to sync logger: %v\n", err)
+			os.Exit(1)
 		}
 	}()
 

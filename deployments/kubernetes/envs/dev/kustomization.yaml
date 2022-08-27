@@ -1,3 +1,7 @@
 resources:
   - ../../base
-namePrefix: dev-
+  - grafana
+  - grafana-agent
+  - loki
+  - mimir
+  - tempo
