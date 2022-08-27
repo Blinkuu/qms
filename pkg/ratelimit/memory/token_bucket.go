@@ -2,10 +2,12 @@ package memory
 
 import (
 	"errors"
-	"github.com/Blinkuu/qms/pkg/math"
-	"github.com/benbjohnson/clock"
 	"sync"
 	"time"
+
+	"github.com/benbjohnson/clock"
+
+	"github.com/Blinkuu/qms/pkg/math"
 )
 
 type TokenBucket struct {
@@ -40,7 +42,7 @@ func NewTokenBucket(refillRate int64, capacity int64, clock clock.Clock) *TokenB
 // nanoseconds if a request is not allowed.
 func (b *TokenBucket) Allow(tokens int64) (time.Duration, error) {
 	if tokens > b.capacity {
-		return 0, errors.New("requested more")
+		return 0, errors.New("requested more tokens than available capacity")
 	}
 
 	currentTimeNanos := b.clock.Now().UnixNano()

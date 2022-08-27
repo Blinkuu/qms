@@ -7,7 +7,7 @@ import (
 )
 
 const (
-	StatusOK int = 1001
+	StatusOK = 1001
 )
 
 const (
@@ -20,16 +20,17 @@ type response struct {
 	Result interface{} `json:"result,omitempty"`
 }
 
-type HTTPHandler struct {
+type PingHTTPHandler struct {
 	service ports.PingService
 }
 
-func NewHTTPHandler(service ports.PingService) *HTTPHandler {
-	return &HTTPHandler{
+func NewPingHTTPHandler(service ports.PingService) *PingHTTPHandler {
+	return &PingHTTPHandler{
 		service: service,
 	}
 }
-func (h *HTTPHandler) Ping() http.HandlerFunc {
+
+func (h *PingHTTPHandler) Ping() http.HandlerFunc {
 	return func(w http.ResponseWriter, _ *http.Request) {
 		result := h.service.Ping()
 
