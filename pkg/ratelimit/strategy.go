@@ -19,17 +19,21 @@ type Strategy interface {
 	Allow(ctx context.Context, tokens int64) (waitTime time.Duration, err error)
 }
 
-type StrategyFactory struct {
+type StrategyFactory interface {
+	Strategy(algorithm string, unit string, requestsPerUnit int64) (Strategy, error)
+}
+
+type MemoryStrategyFactory struct {
 	clock clock.Clock
 }
 
-func NewStrategyFactory(clock clock.Clock) *StrategyFactory {
-	return &StrategyFactory{
+func NewMemoryStrategyFactory(clock clock.Clock) *MemoryStrategyFactory {
+	return &MemoryStrategyFactory{
 		clock: clock,
 	}
 }
 
-func (f *StrategyFactory) Strategy(algorithm string, unit string, requestsPerUnit int64) (Strategy, error) {
+func (f *MemoryStrategyFactory) Strategy(algorithm string, unit string, requestsPerUnit int64) (Strategy, error) {
 	parsedUnit, err := timeunit.Parse(unit)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse time unit: %w", err)
@@ -39,7 +43,6 @@ func (f *StrategyFactory) Strategy(algorithm string, unit string, requestsPerUni
 	case TokenBucketAlgorithm:
 		return memory.NewTokenBucket(requestsPerUnit*int64(parsedUnit), requestsPerUnit*int64(parsedUnit), f.clock), nil
 	default:
+		return nil, fmt.Errorf("%s algorithm is not supported", algorithm)
 	}
-
-	return nil, fmt.Errorf("failed to create strategy")
 }

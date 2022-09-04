@@ -11,12 +11,16 @@ type Strategy interface {
 	Free(ctx context.Context, tokens int64) (remainingTokens int64, ok bool, err error)
 }
 
-type StrategyFactory struct{}
-
-func NewStrategyFactory() *StrategyFactory {
-	return &StrategyFactory{}
+type StrategyFactory interface {
+	Strategy(capacity int64) (Strategy, error)
 }
 
-func (StrategyFactory) Strategy(capacity int64) (Strategy, error) {
+type MemoryStrategyFactory struct{}
+
+func NewMemoryStrategyFactory() *MemoryStrategyFactory {
+	return &MemoryStrategyFactory{}
+}
+
+func (MemoryStrategyFactory) Strategy(capacity int64) (Strategy, error) {
 	return memory.NewCappedBucket(capacity), nil
 }
