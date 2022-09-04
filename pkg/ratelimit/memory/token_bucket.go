@@ -1,6 +1,7 @@
 package memory
 
 import (
+	"context"
 	"errors"
 	"sync"
 	"time"
@@ -40,7 +41,7 @@ func NewTokenBucket(refillRate int64, capacity int64, clock clock.Clock) *TokenB
 
 // Allow returns 0 if a request is allowed and a non-zero time in
 // nanoseconds if a request is not allowed.
-func (b *TokenBucket) Allow(tokens int64) (time.Duration, error) {
+func (b *TokenBucket) Allow(_ context.Context, tokens int64) (time.Duration, error) {
 	if tokens > b.capacity {
 		return 0, errors.New("requested more tokens than available capacity")
 	}

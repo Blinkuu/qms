@@ -18,8 +18,8 @@ func NewPingHTTPHandler(service ports.PingService) *PingHTTPHandler {
 }
 
 func (h *PingHTTPHandler) Ping() http.HandlerFunc {
-	return func(w http.ResponseWriter, _ *http.Request) {
-		result := h.service.Ping()
+	return func(w http.ResponseWriter, r *http.Request) {
+		result := h.service.Ping(r.Context())
 
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(response{Status: StatusOK, Msg: MsgOK, Result: result})

@@ -1,6 +1,7 @@
 package memory
 
 import (
+	"context"
 	"sync"
 )
 
@@ -22,7 +23,7 @@ func NewCappedBucket(capacity int64) *CappedBucket {
 	}
 }
 
-func (c *CappedBucket) Alloc(tokens int64) (int64, bool, error) {
+func (c *CappedBucket) Alloc(_ context.Context, tokens int64) (int64, bool, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -35,7 +36,7 @@ func (c *CappedBucket) Alloc(tokens int64) (int64, bool, error) {
 	return c.remainingTokensLocked(), true, nil
 }
 
-func (c *CappedBucket) Free(tokens int64) (int64, bool, error) {
+func (c *CappedBucket) Free(_ context.Context, tokens int64) (int64, bool, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 

@@ -1,12 +1,14 @@
 package alloclimit
 
 import (
+	"context"
+
 	"github.com/Blinkuu/qms/pkg/alloclimit/memory"
 )
 
 type Strategy interface {
-	Alloc(tokens int64) (remainingTokens int64, ok bool, err error)
-	Free(tokens int64) (remainingTokens int64, ok bool, err error)
+	Alloc(ctx context.Context, tokens int64) (remainingTokens int64, ok bool, err error)
+	Free(ctx context.Context, tokens int64) (remainingTokens int64, ok bool, err error)
 }
 
 type StrategyFactory struct{}
