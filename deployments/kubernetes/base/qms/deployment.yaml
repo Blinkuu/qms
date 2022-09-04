@@ -4,8 +4,11 @@ metadata:
   name: qms
   labels:
     app: qms
+  annotations:
+    prometheus.io/scrape: 'true'
+    prometheus.io/path: '/metrics'
 spec:
-  replicas: 3
+  replicas: 1
   selector:
     matchLabels:
       app: qms
@@ -18,7 +21,7 @@ spec:
         - name: qms
           image: qms:latest
           ports:
-            - name: http
+            - name: qms-http
               containerPort: 6789
           volumeMounts:
             - name: qms-config

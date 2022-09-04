@@ -2,14 +2,17 @@ package services
 
 import (
 	"fmt"
-	"github.com/Blinkuu/qms/pkg/ratelimit"
-	"github.com/Blinkuu/qms/pkg/ratelimit/memory"
-	"github.com/Blinkuu/qms/pkg/timeunit"
-	"github.com/benbjohnson/clock"
-	"go.uber.org/zap"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/benbjohnson/clock"
+	"go.uber.org/zap"
+
+	"github.com/Blinkuu/qms/pkg/log"
+	"github.com/Blinkuu/qms/pkg/ratelimit"
+	"github.com/Blinkuu/qms/pkg/ratelimit/memory"
+	"github.com/Blinkuu/qms/pkg/timeunit"
 )
 
 type guard struct {
@@ -42,7 +45,7 @@ type QuotaService struct {
 	rwMu           *sync.RWMutex
 }
 
-func NewQuotaService(clock clock.Clock, logger *zap.Logger, cfg QuotaServiceConfig) *QuotaService {
+func NewQuotaService(clock clock.Clock, logger log.Logger, cfg QuotaServiceConfig) *QuotaService {
 	guardContainer := make(guardContainer)
 
 	for _, quota := range cfg.Quotas {

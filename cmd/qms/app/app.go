@@ -4,23 +4,27 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/Blinkuu/qms/internal/core/services"
-	"github.com/Blinkuu/qms/internal/handlers"
-	"github.com/benbjohnson/clock"
-	"github.com/gorilla/mux"
-	"go.uber.org/zap"
 	"net/http"
 	"time"
+
+	"github.com/benbjohnson/clock"
+	"github.com/gorilla/mux"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"go.uber.org/zap"
+
+	"github.com/Blinkuu/qms/internal/core/services"
+	"github.com/Blinkuu/qms/internal/handlers"
+	"github.com/Blinkuu/qms/pkg/log"
 )
 
 type App struct {
 	cfg    Config
 	clock  clock.Clock
-	logger *zap.Logger
+	logger log.Logger
 	server *http.Server
 }
 
-func New(clock clock.Clock, logger *zap.Logger, cfg Config) *App {
+func New(clock clock.Clock, logger log.Logger, cfg Config) *App {
 	pingService := services.NewPingService()
 	pingHTTPHandler := handlers.NewPingHTTPHandler(pingService)
 
@@ -28,6 +32,7 @@ func New(clock clock.Clock, logger *zap.Logger, cfg Config) *App {
 	quotaHTTPHandler := handlers.NewQuotaHTTPHandler(quotaService)
 
 	router := mux.NewRouter()
+	router.Handle("/metrics", promhttp.Handler())
 	v1ApiRouter := router.PathPrefix("/api/v1").Subrouter()
 	v1ApiRouter.HandleFunc("/ping", pingHTTPHandler.Ping()).Methods(http.MethodGet)
 	v1ApiRouter.HandleFunc("/allow", quotaHTTPHandler.Allow()).Methods(http.MethodPost)
