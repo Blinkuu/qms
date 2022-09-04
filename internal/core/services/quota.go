@@ -15,12 +15,6 @@ import (
 	"github.com/Blinkuu/qms/pkg/timeunit"
 )
 
-type guard struct {
-	strategy ratelimit.RateStrategy
-}
-
-type guardContainer map[string]*guard
-
 type strategyDefinition struct {
 	Type string `mapstructure:"type"`
 
@@ -40,9 +34,15 @@ type QuotaServiceConfig struct {
 	Quotas []quotaDefinition `mapstructure:"quotas"`
 }
 
+type guard struct {
+	strategy ratelimit.Strategy
+}
+
+type guardContainer map[string]*guard
+
 type QuotaService struct {
-	guardContainer guardContainer
-	rwMu           *sync.RWMutex
+	guardContainer   guardContainer
+	guardContainerMu *sync.RWMutex
 }
 
 func NewQuotaService(clock clock.Clock, logger log.Logger, cfg QuotaServiceConfig) *QuotaService {
@@ -79,23 +79,23 @@ func NewQuotaService(clock clock.Clock, logger log.Logger, cfg QuotaServiceConfi
 	}
 
 	return &QuotaService{
-		guardContainer: guardContainer,
-		rwMu:           &sync.RWMutex{},
+		guardContainer:   guardContainer,
+		guardContainerMu: &sync.RWMutex{},
 	}
 }
 
-func (q *QuotaService) Allow(namespace string, resource string, weight int64) (time.Duration, error) {
+func (q *QuotaService) Allow(namespace string, resource string, tokens int64) (time.Duration, error) {
 	id := strings.Join([]string{namespace, resource}, "_")
 
-	q.rwMu.RLock()
-	defer q.rwMu.RUnlock()
+	q.guardContainerMu.RLock()
+	defer q.guardContainerMu.RUnlock()
 
 	guard, found := q.guardContainer[id]
 	if !found {
 		return 0, fmt.Errorf("guard for %s not found", id)
 	}
 
-	waitTime, err := guard.strategy.Allow(weight)
+	waitTime, err := guard.strategy.Allow(tokens)
 	if err != nil {
 		return 0, fmt.Errorf("failed to allow: %w", err)
 	}

@@ -2,8 +2,9 @@ package handlers
 
 import (
 	"encoding/json"
-	"github.com/Blinkuu/qms/internal/core/ports"
 	"net/http"
+
+	"github.com/Blinkuu/qms/internal/core/ports"
 )
 
 type QuotaHTTPHandler struct {
@@ -20,7 +21,7 @@ func (h *QuotaHTTPHandler) Allow() http.HandlerFunc {
 	type allowRequest struct {
 		Namespace string `json:"namespace"`
 		Resource  string `json:"resource"`
-		Weight    int64  `json:"weight"`
+		Tokens    int64  `json:"tokens"`
 	}
 
 	type allowResult struct {
@@ -36,7 +37,7 @@ func (h *QuotaHTTPHandler) Allow() http.HandlerFunc {
 			return
 		}
 
-		waitTime, err := h.service.Allow(req.Namespace, req.Resource, req.Weight)
+		waitTime, err := h.service.Allow(req.Namespace, req.Resource, req.Tokens)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
