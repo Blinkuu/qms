@@ -2,23 +2,10 @@ package handlers
 
 import (
 	"encoding/json"
-	"github.com/Blinkuu/qms/internal/core/ports"
 	"net/http"
-)
 
-const (
-	StatusOK = 1001
+	"github.com/Blinkuu/qms/internal/core/ports"
 )
-
-const (
-	MsgOK = "ok"
-)
-
-type response struct {
-	Status int         `json:"status"`
-	Msg    string      `json:"msg"`
-	Result interface{} `json:"result,omitempty"`
-}
 
 type PingHTTPHandler struct {
 	service ports.PingService

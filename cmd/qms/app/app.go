@@ -24,11 +24,15 @@ type App struct {
 	server *http.Server
 }
 
-func New(clock clock.Clock, logger log.Logger, cfg Config) *App {
+func New(clock clock.Clock, logger log.Logger, cfg Config) (*App, error) {
 	pingService := services.NewPingService()
 	pingHTTPHandler := handlers.NewPingHTTPHandler(pingService)
 
-	quotaService := services.NewQuotaService(clock, logger, cfg.QuotaServiceConfig)
+	quotaService, err := services.NewQuotaService(clock, logger, cfg.QuotaServiceConfig)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create quota service: %w", err)
+	}
+
 	quotaHTTPHandler := handlers.NewQuotaHTTPHandler(quotaService)
 
 	router := mux.NewRouter()
@@ -36,6 +40,8 @@ func New(clock clock.Clock, logger log.Logger, cfg Config) *App {
 	v1ApiRouter := router.PathPrefix("/api/v1").Subrouter()
 	v1ApiRouter.HandleFunc("/ping", pingHTTPHandler.Ping()).Methods(http.MethodGet)
 	v1ApiRouter.HandleFunc("/allow", quotaHTTPHandler.Allow()).Methods(http.MethodPost)
+	v1ApiRouter.HandleFunc("/alloc", quotaHTTPHandler.Alloc()).Methods(http.MethodPost)
+	v1ApiRouter.HandleFunc("/free", quotaHTTPHandler.Free()).Methods(http.MethodPost)
 
 	return &App{
 		cfg:    cfg,
@@ -46,7 +52,7 @@ func New(clock clock.Clock, logger log.Logger, cfg Config) *App {
 			WriteTimeout: 10 * time.Second,
 			Handler:      router,
 		},
-	}
+	}, nil
 }
 
 func (a *App) Run() error {

@@ -14,6 +14,11 @@ data:
             algorithm: token-bucket
             unit: second
             requests_per_unit: 10
+        - namespace: namespace1
+          resource: resource2
+          strategy:
+            type: allocation
+            capacity: 10
         - namespace: namespace2
           resource: resource2
           strategy:

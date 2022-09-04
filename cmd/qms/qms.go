@@ -34,11 +34,13 @@ func main() {
 		panic(err)
 	}
 
-	a := app.New(clock.New(), logger, config)
-	if err := runAppAndWaitForSignal(a); err != nil {
-		logger.Error("failed to shutdown qms server", zap.Error(err))
+	a, err := app.New(clock.New(), logger, config)
+	if err != nil {
+		logger.Fatal("failed to create new app", "err", err)
+	}
 
-		os.Exit(1)
+	if err := runAppAndWaitForSignal(a); err != nil {
+		logger.Fatal("failed to shutdown qms server", zap.Error(err))
 	}
 
 	logger.Info("shutting down qms")
