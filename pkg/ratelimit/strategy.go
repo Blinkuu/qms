@@ -1,6 +1,7 @@
 package ratelimit
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -15,7 +16,7 @@ const (
 )
 
 type Strategy interface {
-	Allow(tokens int64) (waitTime time.Duration, err error)
+	Allow(ctx context.Context, tokens int64) (waitTime time.Duration, err error)
 }
 
 type StrategyFactory struct {

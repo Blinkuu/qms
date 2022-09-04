@@ -1,13 +1,16 @@
 package ports
 
-import "time"
+import (
+	"context"
+	"time"
+)
 
 type PingService interface {
-	Ping() string
+	Ping(ctx context.Context) string
 }
 
 type QuotaService interface {
-	Allow(namespace string, resource string, tokens int64) (time.Duration, error)
-	Alloc(namespace string, resource string, tokens int64) (int64, bool, error)
-	Free(namespace string, resource string, tokens int64) (int64, bool, error)
+	Allow(ctx context.Context, namespace, resource string, tokens int64) (time.Duration, error)
+	Alloc(ctx context.Context, namespace, resource string, tokens int64) (int64, bool, error)
+	Free(ctx context.Context, namespace, resource string, tokens int64) (int64, bool, error)
 }

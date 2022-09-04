@@ -1,10 +1,12 @@
 package memory
 
 import (
-	"github.com/benbjohnson/clock"
-	"github.com/stretchr/testify/assert"
+	"context"
 	"testing"
 	"time"
+
+	"github.com/benbjohnson/clock"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestNewTokenBucket_ReturnsNewTokenBucketWithCorrectArguments(t *testing.T) {
@@ -39,7 +41,7 @@ func TestTokenBucket_Allow_ReturnsErrorAndZeroWithMoreTokensRequestedThanCapacit
 	b := NewTokenBucket(rr, c, cl)
 
 	// When
-	wait, err := b.Allow(5)
+	wait, err := b.Allow(context.Background(), 5)
 
 	// Then
 	assert.Error(t, err)
@@ -54,7 +56,7 @@ func TestTokenBucket_Allow_ReturnsNoErrorAndZeroWithLessTokensRequestedThanCapac
 	b := NewTokenBucket(rr, c, cl)
 
 	// When
-	wait, err := b.Allow(3)
+	wait, err := b.Allow(context.Background(), 3)
 
 	// Then
 	assert.NoError(t, err)
@@ -69,21 +71,21 @@ func TestTokenBucket_Allow_ReturnsNoErrorAndCorrectWaitTimeWhenTokensAreExhauste
 	b := NewTokenBucket(2, 4, c)
 
 	// When
-	wait, err := b.Allow(3)
+	wait, err := b.Allow(context.Background(), 3)
 
 	// Then
 	assert.NoError(t, err)
 	assert.Zero(t, wait)
 
 	// When
-	wait, err = b.Allow(3)
+	wait, err = b.Allow(context.Background(), 3)
 
 	// Then
 	assert.NoError(t, err)
 	assert.Zero(t, wait)
 
 	// When
-	wait, err = b.Allow(3)
+	wait, err = b.Allow(context.Background(), 3)
 
 	// Then
 	assert.NoError(t, err)
@@ -98,14 +100,14 @@ func TestTokenBucket_Allow_ReturnsNoErrorAndZeroWhenBucketHasTokens(t *testing.T
 	b := NewTokenBucket(2, 4, c)
 
 	// When
-	wait, err := b.Allow(3)
+	wait, err := b.Allow(context.Background(), 3)
 
 	// Then
 	assert.NoError(t, err)
 	assert.Zero(t, wait)
 
 	// When
-	wait, err = b.Allow(3)
+	wait, err = b.Allow(context.Background(), 3)
 
 	// Then
 	assert.NoError(t, err)
@@ -113,7 +115,7 @@ func TestTokenBucket_Allow_ReturnsNoErrorAndZeroWhenBucketHasTokens(t *testing.T
 
 	// When
 	c.Set(startTime.Add(1 * time.Second))
-	wait, err = b.Allow(3)
+	wait, err = b.Allow(context.Background(), 3)
 
 	// Then
 	assert.NoError(t, err)

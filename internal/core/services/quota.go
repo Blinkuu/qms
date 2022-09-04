@@ -1,6 +1,7 @@
 package services
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"strings"
@@ -63,7 +64,7 @@ func NewQuotaService(clock clock.Clock, logger log.Logger, cfg QuotaServiceConfi
 	}, nil
 }
 
-func (q *QuotaService) Allow(namespace string, resource string, tokens int64) (time.Duration, error) {
+func (q *QuotaService) Allow(ctx context.Context, namespace, resource string, tokens int64) (time.Duration, error) {
 	q.logger.Info("allow called", "namespace", namespace, "resource", resource, "tokens", tokens)
 
 	id := strings.Join([]string{namespace, resource}, "_")
@@ -80,7 +81,7 @@ func (q *QuotaService) Allow(namespace string, resource string, tokens int64) (t
 		return 0, fmt.Errorf("rate limit strategy is not registered for %s", id)
 	}
 
-	waitTime, err := guard.ratelimitStrategy.Allow(tokens)
+	waitTime, err := guard.ratelimitStrategy.Allow(ctx, tokens)
 	if err != nil {
 		return 0, fmt.Errorf("failed to allow: %w", err)
 	}
@@ -88,7 +89,7 @@ func (q *QuotaService) Allow(namespace string, resource string, tokens int64) (t
 	return waitTime, nil
 }
 
-func (q *QuotaService) Alloc(namespace string, resource string, tokens int64) (int64, bool, error) {
+func (q *QuotaService) Alloc(ctx context.Context, namespace, resource string, tokens int64) (int64, bool, error) {
 	q.logger.Info("alloc called", "namespace", namespace, "resource", resource, "tokens", tokens)
 
 	id := strings.Join([]string{namespace, resource}, "_")
@@ -105,7 +106,7 @@ func (q *QuotaService) Alloc(namespace string, resource string, tokens int64) (i
 		return 0, false, fmt.Errorf("alloc strategy is not registered for %s", id)
 	}
 
-	remainingTokens, ok, err := guard.alloclimitStrategy.Alloc(tokens)
+	remainingTokens, ok, err := guard.alloclimitStrategy.Alloc(ctx, tokens)
 	if err != nil {
 		return 0, false, fmt.Errorf("failed to alloc: %w", err)
 	}
@@ -113,7 +114,7 @@ func (q *QuotaService) Alloc(namespace string, resource string, tokens int64) (i
 	return remainingTokens, ok, nil
 }
 
-func (q *QuotaService) Free(namespace string, resource string, tokens int64) (int64, bool, error) {
+func (q *QuotaService) Free(ctx context.Context, namespace, resource string, tokens int64) (int64, bool, error) {
 	q.logger.Info("free called", "namespace", namespace, "resource", resource, "tokens", tokens)
 
 	id := strings.Join([]string{namespace, resource}, "_")
@@ -130,7 +131,7 @@ func (q *QuotaService) Free(namespace string, resource string, tokens int64) (in
 		return 0, false, fmt.Errorf("alloc strategy is not registered for %s", id)
 	}
 
-	remainingTokens, ok, err := guard.alloclimitStrategy.Free(tokens)
+	remainingTokens, ok, err := guard.alloclimitStrategy.Free(ctx, tokens)
 	if err != nil {
 		return 0, false, fmt.Errorf("failed to free: %w", err)
 	}

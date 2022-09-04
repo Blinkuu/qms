@@ -36,7 +36,7 @@ func (h *QuotaHTTPHandler) Allow() http.HandlerFunc {
 			return
 		}
 
-		waitTime, err := h.service.Allow(req.Namespace, req.Resource, req.Tokens)
+		waitTime, err := h.service.Allow(r.Context(), req.Namespace, req.Resource, req.Tokens)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -75,7 +75,7 @@ func (h *QuotaHTTPHandler) Alloc() http.HandlerFunc {
 			return
 		}
 
-		remainingTokens, ok, err := h.service.Alloc(req.Namespace, req.Resource, req.Tokens)
+		remainingTokens, ok, err := h.service.Alloc(r.Context(), req.Namespace, req.Resource, req.Tokens)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -115,7 +115,7 @@ func (h *QuotaHTTPHandler) Free() http.HandlerFunc {
 			return
 		}
 
-		remainingTokens, ok, err := h.service.Free(req.Namespace, req.Resource, req.Tokens)
+		remainingTokens, ok, err := h.service.Free(r.Context(), req.Namespace, req.Resource, req.Tokens)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
