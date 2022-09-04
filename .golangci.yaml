@@ -1,0 +1,5 @@
+run:
+  go: "1.19"
+  timeout: 3m
+  tests: false
+  modules-download-mode: readonly
