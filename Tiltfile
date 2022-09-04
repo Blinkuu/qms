@@ -6,7 +6,7 @@ helm_repo('bitnami-charts', 'https://charts.bitnami.com/bitnami')
 # Compile QMS
 local_resource(
   'go-compile-qms',
-  cmd='make build',
+  cmd='GOARCH=amd64 GOOS=linux make build',
   deps=['./Makefile', './cmd', './internal', './pkg'],
   labels=["local-job"],
 )

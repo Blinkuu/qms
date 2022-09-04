@@ -18,7 +18,7 @@ import (
 )
 
 func main() {
-	logger := log.Must(log.NewZapLogger("qms", "debug", []string{"stderr"}))
+	logger := log.Must(log.NewZapLogger("qms", "debug", []string{"stdout"}))
 	defer func() {
 		err := logger.Close()
 		if err != nil && !errors.Is(err, syscall.ENOTTY) {

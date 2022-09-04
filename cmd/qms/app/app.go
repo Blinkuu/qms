@@ -28,20 +28,27 @@ func New(clock clock.Clock, logger log.Logger, cfg Config) (*App, error) {
 	pingService := services.NewPingService()
 	pingHTTPHandler := handlers.NewPingHTTPHandler(pingService)
 
-	quotaService, err := services.NewQuotaService(clock, logger, cfg.QuotaServiceConfig)
+	rateQuotaService, err := services.NewRateQuotaService(logger, clock, cfg.RateQuotaServiceConfig)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create quota service: %w", err)
+		return nil, fmt.Errorf("failed to create rate quota service: %w", err)
 	}
 
-	quotaHTTPHandler := handlers.NewQuotaHTTPHandler(quotaService)
+	rateQuotaHTTPHandler := handlers.NewRateQuotaHTTPHandler(rateQuotaService)
+
+	allocationQuotaService, err := services.NewAllocationQuotaService(logger, cfg.AllocationQuotaServiceConfig)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create allocation quota service: %w", err)
+	}
+
+	allocationQuotaHTTPHandler := handlers.NewAllocationQuotaHTTPHandler(allocationQuotaService)
 
 	router := mux.NewRouter()
 	router.Handle("/metrics", promhttp.Handler())
 	v1ApiRouter := router.PathPrefix("/api/v1").Subrouter()
 	v1ApiRouter.HandleFunc("/ping", pingHTTPHandler.Ping()).Methods(http.MethodGet)
-	v1ApiRouter.HandleFunc("/allow", quotaHTTPHandler.Allow()).Methods(http.MethodPost)
-	v1ApiRouter.HandleFunc("/alloc", quotaHTTPHandler.Alloc()).Methods(http.MethodPost)
-	v1ApiRouter.HandleFunc("/free", quotaHTTPHandler.Free()).Methods(http.MethodPost)
+	v1ApiRouter.HandleFunc("/allow", rateQuotaHTTPHandler.Allow()).Methods(http.MethodPost)
+	v1ApiRouter.HandleFunc("/alloc", allocationQuotaHTTPHandler.Alloc()).Methods(http.MethodPost)
+	v1ApiRouter.HandleFunc("/free", allocationQuotaHTTPHandler.Free()).Methods(http.MethodPost)
 
 	return &App{
 		cfg:    cfg,
