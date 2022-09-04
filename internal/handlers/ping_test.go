@@ -1,18 +1,20 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
-	"github.com/stretchr/testify/require"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 type mockPingService struct {
 }
 
-func (m mockPingService) Ping() string {
+func (m mockPingService) Ping(_ context.Context) string {
 	return "pong"
 }
 

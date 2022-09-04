@@ -1,8 +1,10 @@
 package services
 
 import (
-	"github.com/stretchr/testify/require"
+	"context"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestNewService(t *testing.T) {
@@ -18,7 +20,7 @@ func TestService_Ping(t *testing.T) {
 	s := &PingService{}
 
 	// When
-	got := s.Ping()
+	got := s.Ping(context.Background())
 
 	// Then
 	require.Equal(t, "pong", got)

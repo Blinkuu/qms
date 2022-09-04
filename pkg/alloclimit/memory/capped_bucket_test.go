@@ -1,6 +1,7 @@
 package memory
 
 import (
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -28,7 +29,7 @@ func TestCappedBucket_Alloc_ReturnsNoErrorFalseAndRemainingTokensWithMoreTokensR
 	b := NewCappedBucket(c)
 
 	// When
-	remaining, ok, err := b.Alloc(5)
+	remaining, ok, err := b.Alloc(context.Background(), 5)
 
 	// Then
 	assert.NoError(t, err)
@@ -42,7 +43,7 @@ func TestCappedBucket_Allow_ReturnsNoErrorTrueAndRemainingTokensWithLessTokensRe
 	b := NewCappedBucket(c)
 
 	// When
-	remaining, ok, err := b.Alloc(3)
+	remaining, ok, err := b.Alloc(context.Background(), 3)
 
 	// Then
 	assert.NoError(t, err)
@@ -56,7 +57,7 @@ func TestCappedBucket_Allow_AllowsFirstAllocationAndDisallowsSecondDueToInsuffic
 	b := NewCappedBucket(c)
 
 	// When
-	remaining1, ok, err := b.Alloc(3)
+	remaining1, ok, err := b.Alloc(context.Background(), 3)
 
 	// Then
 	assert.NoError(t, err)
@@ -64,7 +65,7 @@ func TestCappedBucket_Allow_AllowsFirstAllocationAndDisallowsSecondDueToInsuffic
 	assert.EqualValues(t, 1, remaining1)
 
 	// When
-	remaining2, ok, err := b.Alloc(2)
+	remaining2, ok, err := b.Alloc(context.Background(), 2)
 
 	// Then
 	assert.NoError(t, err)
@@ -78,7 +79,7 @@ func TestCappedBucket_Free_ReturnsNoErrorFalseAndRemainingTokensWithMoreTokensFr
 	b := NewCappedBucket(c)
 
 	// When
-	remaining, ok, err := b.Free(3)
+	remaining, ok, err := b.Free(context.Background(), 3)
 
 	// Then
 	assert.NoError(t, err)
@@ -90,13 +91,13 @@ func TestCappedBucket_Free_ReturnsNoErrorTrueAndRemainingTokensWithLessTokensFre
 	// Given
 	c := int64(4)
 	b := NewCappedBucket(c)
-	remaining1, ok, err := b.Alloc(2)
+	remaining1, ok, err := b.Alloc(context.Background(), 2)
 	assert.NoError(t, err)
 	assert.True(t, ok)
 	assert.EqualValues(t, 2, remaining1)
 
 	// When
-	remaining2, ok, err := b.Free(1)
+	remaining2, ok, err := b.Free(context.Background(), 1)
 
 	// Then
 	assert.NoError(t, err)
