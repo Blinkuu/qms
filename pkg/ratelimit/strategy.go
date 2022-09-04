@@ -2,6 +2,6 @@ package ratelimit
 
 import "time"
 
-type RateStrategy interface {
-	Allow(weight int64) (time.Duration, error)
+type Strategy interface {
+	Allow(tokens int64) (waitTime time.Duration, err error)
 }

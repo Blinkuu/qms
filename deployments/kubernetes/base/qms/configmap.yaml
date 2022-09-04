@@ -5,3 +5,19 @@ metadata:
 data:
   config.yaml: |
     http_port: 6789
+    quota_service:
+      quotas:
+        - namespace: namespace1
+          resource: resource1
+          strategy:
+            type: rate
+            algorithm: token-bucket
+            unit: second
+            requests_per_unit: 10
+        - namespace: namespace2
+          resource: resource2
+          strategy:
+            type: rate
+            algorithm: token-bucket
+            unit: second
+            requests_per_unit: 10

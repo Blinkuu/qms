@@ -7,5 +7,5 @@ type PingService interface {
 }
 
 type QuotaService interface {
-	Allow(namespace string, resource string, weight int64) (time.Duration, error)
+	Allow(namespace string, resource string, tokens int64) (time.Duration, error)
 }
