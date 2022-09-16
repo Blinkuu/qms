@@ -7,12 +7,15 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/dgraph-io/badger/v3"
+
 	"github.com/Blinkuu/qms/pkg/alloclimit"
 	"github.com/Blinkuu/qms/pkg/log"
+	"github.com/Blinkuu/qms/pkg/storage/local"
 )
 
 type allocationStrategyDefinition struct {
-	Capacity int64 `mapstructure:"capacity,omitempty"`
+	Capacity int64 `mapstructure:"capacity"`
 }
 
 type allocationQuotaDefinition struct {
@@ -23,6 +26,7 @@ type allocationQuotaDefinition struct {
 
 type AllocationQuotaServiceConfig struct {
 	Backend string                      `mapstructure:"backend"`
+	Local   local.Config                `mapstructure:"local"`
 	Quotas  []allocationQuotaDefinition `mapstructure:"quotas"`
 }
 
@@ -100,6 +104,12 @@ func allocationGuardContainerFromConfig(cfg AllocationQuotaServiceConfig) (alloc
 	switch cfg.Backend {
 	case "memory":
 		strategyFactory = alloclimit.NewMemoryStrategyFactory()
+	case "local":
+		db, err := badger.Open(badger.DefaultOptions(cfg.Local.Dir))
+		if err != nil {
+			return nil, fmt.Errorf("failed to open badger: %w", err)
+		}
+		strategyFactory = alloclimit.NewLocalStrategyFactory(db)
 	default:
 		return nil, fmt.Errorf("%s backend is not supported", cfg.Backend)
 	}
@@ -112,7 +122,7 @@ func allocationGuardContainerFromConfig(cfg AllocationQuotaServiceConfig) (alloc
 			return nil, errors.New("only a single namespace-resource pair can be registered")
 		}
 
-		strategy, err := strategyFactory.Strategy(quota.Strategy.Capacity)
+		strategy, err := strategyFactory.Strategy(id, quota.Strategy.Capacity)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create new ratelimit strategy: %w", err)
 		}

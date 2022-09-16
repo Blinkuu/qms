@@ -3,6 +3,9 @@ package alloclimit
 import (
 	"context"
 
+	"github.com/dgraph-io/badger/v3"
+
+	"github.com/Blinkuu/qms/pkg/alloclimit/local"
 	"github.com/Blinkuu/qms/pkg/alloclimit/memory"
 )
 
@@ -12,7 +15,7 @@ type Strategy interface {
 }
 
 type StrategyFactory interface {
-	Strategy(capacity int64) (Strategy, error)
+	Strategy(id string, capacity int64) (Strategy, error)
 }
 
 type MemoryStrategyFactory struct{}
@@ -21,6 +24,20 @@ func NewMemoryStrategyFactory() *MemoryStrategyFactory {
 	return &MemoryStrategyFactory{}
 }
 
-func (MemoryStrategyFactory) Strategy(capacity int64) (Strategy, error) {
+func (*MemoryStrategyFactory) Strategy(_ string, capacity int64) (Strategy, error) {
 	return memory.NewCappedBucket(capacity), nil
+}
+
+type LocalStrategyFactory struct {
+	db *badger.DB
+}
+
+func NewLocalStrategyFactory(db *badger.DB) *LocalStrategyFactory {
+	return &LocalStrategyFactory{
+		db: db,
+	}
+}
+
+func (f *LocalStrategyFactory) Strategy(id string, capacity int64) (Strategy, error) {
+	return local.NewCappedBucket(f.db, []byte(id), capacity)
 }

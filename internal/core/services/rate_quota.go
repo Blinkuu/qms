@@ -15,12 +15,9 @@ import (
 )
 
 type rateStrategyDefinition struct {
-	Type string `mapstructure:"type"`
-
-	// Rate type
-	Algorithm      string `mapstructure:"algorithm,omitempty"`
-	Unit           string `mapstructure:"unit,omitempty"`
-	RequestPerUnit int64  `mapstructure:"requests_per_unit,omitempty"`
+	Algorithm      string `mapstructure:"algorithm"`
+	Unit           string `mapstructure:"unit"`
+	RequestPerUnit int64  `mapstructure:"requests_per_unit"`
 }
 
 type rateQuotaDefinition struct {
