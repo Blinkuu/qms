@@ -5,7 +5,7 @@ metadata:
 data:
   config.yaml: |
     http_port: 6789
-
+    otel_collector_target: grafana-agent-traces:4317
     allocation_quota_service:
       backend: local
       local:

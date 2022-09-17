@@ -9,22 +9,24 @@ import (
 
 	"github.com/benbjohnson/clock"
 	"github.com/gorilla/mux"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/zap"
 
 	"github.com/Blinkuu/qms/internal/core/services"
 	"github.com/Blinkuu/qms/internal/handlers"
 	"github.com/Blinkuu/qms/pkg/log"
+	"github.com/Blinkuu/qms/pkg/middleware/gorillamux"
 )
 
 type App struct {
 	cfg    Config
-	clock  clock.Clock
 	logger log.Logger
 	server *http.Server
 }
 
-func New(clock clock.Clock, logger log.Logger, cfg Config) (*App, error) {
+func New(cfg Config, clock clock.Clock, logger log.Logger, reg prometheus.Registerer, tp trace.TracerProvider) (*App, error) {
 	pingService := services.NewPingService()
 	pingHTTPHandler := handlers.NewPingHTTPHandler(pingService)
 
@@ -43,6 +45,12 @@ func New(clock clock.Clock, logger log.Logger, cfg Config) (*App, error) {
 	allocationQuotaHTTPHandler := handlers.NewAllocationQuotaHTTPHandler(allocationQuotaService)
 
 	router := mux.NewRouter()
+	router.Use(
+		gorillamux.TraceMiddleware(tp, "gorillamux"),
+		gorillamux.MetricsMiddleware(clock, reg, "default", "qms", "gorillamux"),
+		gorillamux.LogMiddleware(logger, "gorillamux"),
+	)
+
 	router.Handle("/metrics", promhttp.Handler())
 	v1ApiRouter := router.PathPrefix("/api/v1").Subrouter()
 	v1ApiRouter.HandleFunc("/ping", pingHTTPHandler.Ping()).Methods(http.MethodGet)

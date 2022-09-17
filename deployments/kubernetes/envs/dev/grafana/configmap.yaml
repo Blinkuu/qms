@@ -57,5 +57,7 @@ data:
         apiVersion: 1
         uid: tempo
         jsonData:
+          serviceMap:
+            datasourceUid: Mimir
           tracesToLogs:
             datasourceUid: Loki
