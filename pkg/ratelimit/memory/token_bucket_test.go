@@ -11,7 +11,7 @@ import (
 
 func TestNewTokenBucket_ReturnsNewTokenBucketWithCorrectArguments(t *testing.T) {
 	// When
-	got := NewTokenBucket(1, 1, clock.NewMock())
+	got := NewTokenBucket(clock.NewMock(), 1, 1)
 
 	// Then
 	assert.NotNil(t, got)
@@ -19,7 +19,7 @@ func TestNewTokenBucket_ReturnsNewTokenBucketWithCorrectArguments(t *testing.T) 
 
 func TestNewTokenBucket_PanicsWithInvalidRefillRate(t *testing.T) {
 	// When
-	panicFunc := func() { _ = NewTokenBucket(0, 1, clock.NewMock()) }
+	panicFunc := func() { _ = NewTokenBucket(clock.NewMock(), 0, 1) }
 
 	// Then
 	assert.Panics(t, panicFunc)
@@ -27,69 +27,66 @@ func TestNewTokenBucket_PanicsWithInvalidRefillRate(t *testing.T) {
 
 func TestNewTokenBucket_PanicsWithInvalidCapacity(t *testing.T) {
 	// When
-	panicFunc := func() { _ = NewTokenBucket(1, 0, clock.NewMock()) }
+	panicFunc := func() { _ = NewTokenBucket(clock.NewMock(), 1, 0) }
 
 	// Then
 	assert.Panics(t, panicFunc)
 }
 
-func TestTokenBucket_Allow_ReturnsErrorAndZeroWithMoreTokensRequestedThanCapacity(t *testing.T) {
+func TestTokenBucket_Allow_ReturnsNoErrorNotOKAndZeroWithMoreTokensRequestedThanCapacity(t *testing.T) {
 	// Given
 	rr := int64(2)
 	c := int64(4)
 	cl := clock.NewMock()
-	b := NewTokenBucket(rr, c, cl)
+	b := NewTokenBucket(cl, rr, c)
 
 	// When
-	wait, err := b.Allow(context.Background(), 5)
-
-	// Then
-	assert.Error(t, err)
-	assert.Zero(t, wait)
-}
-
-func TestTokenBucket_Allow_ReturnsNoErrorAndZeroWithLessTokensRequestedThanCapacity(t *testing.T) {
-	// Given
-	rr := int64(2)
-	c := int64(4)
-	cl := clock.NewMock()
-	b := NewTokenBucket(rr, c, cl)
-
-	// When
-	wait, err := b.Allow(context.Background(), 3)
+	wait, ok, err := b.Allow(context.Background(), 5)
 
 	// Then
 	assert.NoError(t, err)
+	assert.False(t, ok)
 	assert.Zero(t, wait)
 }
 
-func TestTokenBucket_Allow_ReturnsNoErrorAndCorrectWaitTimeWhenTokensAreExhausted(t *testing.T) {
+func TestTokenBucket_Allow_ReturnsNoErrorOKAndZeroWithLessTokensRequestedThanCapacity(t *testing.T) {
+	// Given
+	rr := int64(2)
+	c := int64(4)
+	cl := clock.NewMock()
+	b := NewTokenBucket(cl, rr, c)
+
+	// When
+	wait, ok, err := b.Allow(context.Background(), 3)
+
+	// Then
+	assert.NoError(t, err)
+	assert.True(t, ok)
+	assert.Zero(t, wait)
+}
+
+func TestTokenBucket_Allow_ReturnsNoErrorNotOKWhenTokensAreExhausted(t *testing.T) {
 	// Given
 	startTime := time.Date(2022, time.Month(1), 11, 0, 0, 1, 0, time.UTC)
 	c := clock.NewMock()
 	c.Set(startTime)
-	b := NewTokenBucket(2, 4, c)
+	b := NewTokenBucket(c, 2, 4)
 
 	// When
-	wait, err := b.Allow(context.Background(), 3)
+	wait, ok, err := b.Allow(context.Background(), 3)
 
 	// Then
 	assert.NoError(t, err)
+	assert.True(t, ok)
 	assert.Zero(t, wait)
 
 	// When
-	wait, err = b.Allow(context.Background(), 3)
+	wait, ok, err = b.Allow(context.Background(), 3)
 
 	// Then
 	assert.NoError(t, err)
+	assert.False(t, ok)
 	assert.Zero(t, wait)
-
-	// When
-	wait, err = b.Allow(context.Background(), 3)
-
-	// Then
-	assert.NoError(t, err)
-	assert.Equal(t, time.Second, wait)
 }
 
 func TestTokenBucket_Allow_ReturnsNoErrorAndZeroWhenBucketHasTokens(t *testing.T) {
@@ -97,27 +94,30 @@ func TestTokenBucket_Allow_ReturnsNoErrorAndZeroWhenBucketHasTokens(t *testing.T
 	startTime := time.Date(2022, time.Month(1), 11, 0, 0, 1, 0, time.UTC)
 	c := clock.NewMock()
 	c.Set(startTime)
-	b := NewTokenBucket(2, 4, c)
+	b := NewTokenBucket(c, 2, 4)
 
 	// When
-	wait, err := b.Allow(context.Background(), 3)
+	wait, ok, err := b.Allow(context.Background(), 3)
 
 	// Then
 	assert.NoError(t, err)
+	assert.True(t, ok)
 	assert.Zero(t, wait)
 
 	// When
-	wait, err = b.Allow(context.Background(), 3)
+	wait, ok, err = b.Allow(context.Background(), 3)
 
 	// Then
 	assert.NoError(t, err)
+	assert.False(t, ok)
 	assert.Zero(t, wait)
 
 	// When
 	c.Set(startTime.Add(1 * time.Second))
-	wait, err = b.Allow(context.Background(), 3)
+	wait, ok, err = b.Allow(context.Background(), 3)
 
 	// Then
 	assert.NoError(t, err)
+	assert.True(t, ok)
 	assert.Zero(t, wait)
 }

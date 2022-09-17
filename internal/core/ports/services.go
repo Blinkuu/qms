@@ -10,7 +10,7 @@ type PingService interface {
 }
 
 type RateQuotaService interface {
-	Allow(ctx context.Context, namespace, resource string, tokens int64) (time.Duration, error)
+	Allow(ctx context.Context, namespace, resource string, tokens int64) (time.Duration, bool, error)
 }
 
 type AllocationQuotaService interface {
