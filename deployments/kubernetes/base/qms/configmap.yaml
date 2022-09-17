@@ -7,10 +7,12 @@ data:
     http_port: 6789
 
     allocation_quota_service:
-      backend: memory
+      backend: local
+      local:
+        dir: /tmp/qms/data/alloc
       quotas:
         - namespace: namespace1
-          resource: resource2
+          resource: resource1
           strategy:
             capacity: 10
 
