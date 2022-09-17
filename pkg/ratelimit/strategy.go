@@ -16,7 +16,7 @@ const (
 )
 
 type Strategy interface {
-	Allow(ctx context.Context, tokens int64) (waitTime time.Duration, err error)
+	Allow(ctx context.Context, tokens int64) (waitTime time.Duration, ok bool, err error)
 }
 
 type StrategyFactory interface {
@@ -41,7 +41,7 @@ func (f *MemoryStrategyFactory) Strategy(algorithm string, unit string, requests
 
 	switch algorithm {
 	case TokenBucketAlgorithm:
-		return memory.NewTokenBucket(requestsPerUnit*int64(parsedUnit), requestsPerUnit*int64(parsedUnit), f.clock), nil
+		return memory.NewTokenBucket(f.clock, requestsPerUnit*int64(parsedUnit), requestsPerUnit*int64(parsedUnit)), nil
 	default:
 		return nil, fmt.Errorf("%s algorithm is not supported", algorithm)
 	}

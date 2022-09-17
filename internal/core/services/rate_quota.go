@@ -52,7 +52,7 @@ func NewRateQuotaService(logger log.Logger, clock clock.Clock, cfg RateQuotaServ
 	}, nil
 }
 
-func (q *RateQuotaService) Allow(ctx context.Context, namespace, resource string, tokens int64) (time.Duration, error) {
+func (q *RateQuotaService) Allow(ctx context.Context, namespace, resource string, tokens int64) (time.Duration, bool, error) {
 	q.logger.Info("allow called", "namespace", namespace, "resource", resource, "tokens", tokens)
 
 	id := strings.Join([]string{namespace, resource}, "_")
@@ -62,15 +62,15 @@ func (q *RateQuotaService) Allow(ctx context.Context, namespace, resource string
 
 	guard, found := q.guardContainer[id]
 	if !found {
-		return 0, fmt.Errorf("guard for %s not found", id)
+		return 0, false, fmt.Errorf("guard for %s not found", id)
 	}
 
-	waitTime, err := guard.strategy.Allow(ctx, tokens)
+	waitTime, ok, err := guard.strategy.Allow(ctx, tokens)
 	if err != nil {
-		return 0, fmt.Errorf("failed to allow: %w", err)
+		return 0, false, fmt.Errorf("failed to allow: %w", err)
 	}
 
-	return waitTime, nil
+	return waitTime, ok, nil
 }
 
 func ratelimitGuardContainerFromConfig(clock clock.Clock, cfg RateQuotaServiceConfig) (ratelimitGuardContainer, error) {

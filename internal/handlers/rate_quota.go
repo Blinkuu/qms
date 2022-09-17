@@ -26,6 +26,7 @@ func (h *RateQuotaHTTPHandler) Allow() http.HandlerFunc {
 
 	type allowResult struct {
 		WaitTime int64 `json:"wait_time"`
+		OK       bool  `json:"ok"`
 	}
 
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -36,7 +37,7 @@ func (h *RateQuotaHTTPHandler) Allow() http.HandlerFunc {
 			return
 		}
 
-		waitTime, err := h.service.Allow(r.Context(), req.Namespace, req.Resource, req.Tokens)
+		waitTime, ok, err := h.service.Allow(r.Context(), req.Namespace, req.Resource, req.Tokens)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -49,6 +50,7 @@ func (h *RateQuotaHTTPHandler) Allow() http.HandlerFunc {
 				Msg:    MsgOK,
 				Result: allowResult{
 					WaitTime: waitTime.Nanoseconds(),
+					OK:       ok,
 				},
 			},
 		)
