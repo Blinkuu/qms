@@ -41,7 +41,7 @@ func (f *MemoryStrategyFactory) Strategy(algorithm string, unit string, requests
 
 	switch algorithm {
 	case TokenBucketAlgorithm:
-		return memory.NewTokenBucket(f.clock, requestsPerUnit*int64(parsedUnit), requestsPerUnit*int64(parsedUnit)), nil
+		return memory.NewTokenBucket(f.clock, requestsPerUnit/int64(parsedUnit), requestsPerUnit*int64(parsedUnit)), nil
 	default:
 		return nil, fmt.Errorf("%s algorithm is not supported", algorithm)
 	}
