@@ -2,6 +2,6 @@ FROM golang:1.19
 
 WORKDIR /app/
 
-ADD bin bin
+ADD bin/qms bin/qms
 
 ENTRYPOINT [ "./bin/qms" ]

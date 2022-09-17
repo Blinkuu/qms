@@ -10,6 +10,9 @@ GO_BUILD=go build
 build:
 	GOARCH=$(GOARCH) GOOS=$(GOOS) $(GO_BUILD) -o ./bin/qms ./cmd/qms
 
+build-sut:
+	GOARCH=$(GOARCH) GOOS=$(GOOS) $(GO_BUILD) -o ./bin/sut ./cmd/sut
+
 .PHONY: test
 test:
 	$(GO_TEST) $(GO_TEST_OPT) -v ./...

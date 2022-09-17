@@ -5,3 +5,4 @@ resources:
   - loki
   - mimir
   - tempo
+  - sut
