@@ -15,6 +15,12 @@ const (
 	TokenBucketAlgorithm string = "token-bucket"
 )
 
+type StrategyConfig struct {
+	Algorithm      string `mapstructure:"algorithm"`
+	Unit           string `mapstructure:"unit"`
+	RequestPerUnit int64  `mapstructure:"requests_per_unit"`
+}
+
 type Strategy interface {
 	Allow(ctx context.Context, tokens int64) (waitTime time.Duration, ok bool, err error)
 }

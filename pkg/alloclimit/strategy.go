@@ -9,6 +9,10 @@ import (
 	"github.com/Blinkuu/qms/pkg/alloclimit/memory"
 )
 
+type StrategyConfig struct {
+	Capacity int64 `mapstructure:"capacity"`
+}
+
 type Strategy interface {
 	Alloc(ctx context.Context, tokens int64) (remainingTokens int64, ok bool, err error)
 	Free(ctx context.Context, tokens int64) (remainingTokens int64, ok bool, err error)

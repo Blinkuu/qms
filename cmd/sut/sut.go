@@ -8,15 +8,16 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
-	"github.com/Blinkuu/qms/internal/core/services"
+	"github.com/Blinkuu/qms/internal/core/services/ping"
 	"github.com/Blinkuu/qms/internal/handlers"
+	"github.com/Blinkuu/qms/pkg/log"
 	"github.com/Blinkuu/qms/pkg/middleware/gorillamux"
 )
 
 func main() {
 	clk := clock.New()
 
-	pingService := services.NewPingService()
+	pingService := ping.NewService(log.NewNoopLogger())
 	pingHandler := handlers.NewPingHTTPHandler(pingService)
 
 	router := mux.NewRouter()

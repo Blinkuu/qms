@@ -1,15 +1,17 @@
-package services
+package ping
 
 import (
 	"context"
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
+	"github.com/Blinkuu/qms/pkg/log"
 )
 
 func TestNewService(t *testing.T) {
 	// When
-	s := NewPingService()
+	s := NewService(log.NewNoopLogger())
 
 	// Then
 	require.NotNil(t, s)
@@ -17,7 +19,7 @@ func TestNewService(t *testing.T) {
 
 func TestService_Ping(t *testing.T) {
 	// Given
-	s := &PingService{}
+	s := &Service{}
 
 	// When
 	got := s.Ping(context.Background())

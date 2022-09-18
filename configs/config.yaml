@@ -1,22 +1,28 @@
-http_port: 6789
+target: all
+otel_collector_target: grafana-agent-traces:4317
 
-allocation_quota_service:
-  backend: memory
+server:
+  http_port: 6789
+
+alloc:
+  backend: local
+  local:
+    dir: /tmp/qms/data/alloc
   quotas:
     - namespace: namespace1
-      resource: resource2
+      resource: resource1
       strategy:
         capacity: 10
 
-rate_quota_service:
+rate:
   backend: memory
   quotas:
     - namespace: namespace1
       resource: resource1
       strategy:
         algorithm: token-bucket
-        unit: second
-        requests_per_unit: 10
+        unit: minute
+        requests_per_unit: 120
     - namespace: namespace2
       resource: resource2
       strategy:
