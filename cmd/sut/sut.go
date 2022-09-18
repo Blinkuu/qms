@@ -16,12 +16,16 @@ import (
 func main() {
 	clk := clock.New()
 
+	pingService := services.NewPingService()
+	pingHandler := handlers.NewPingHTTPHandler(pingService)
+
 	router := mux.NewRouter()
 	router.Use(
 		gorillamux.MetricsMiddleware(clk, prometheus.DefaultRegisterer, "default", "sut", "gorillamux"),
 	)
 	router.Handle("/metrics", promhttp.Handler())
-	router.Handle("/api/v1/ping", handlers.NewPingHTTPHandler(services.NewPingService()).Ping())
+	v1ApiRouter := router.PathPrefix("/api/v1").Subrouter()
+	v1ApiRouter.Handle("/ping", pingHandler.Ping())
 
 	if err := http.ListenAndServe(":8080", router); err != nil {
 		panic(err)
