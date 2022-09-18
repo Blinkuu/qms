@@ -67,24 +67,48 @@ func (z *ZapLogger) Debug(msg string, keysAndValues ...any) {
 	z.logger.Debugw(msg, keysAndValues...)
 }
 
+func (z *ZapLogger) Debugf(template string, args ...any) {
+	z.logger.Debugf(template, args...)
+}
+
 func (z *ZapLogger) Info(msg string, keysAndValues ...any) {
 	z.logger.Infow(msg, keysAndValues...)
+}
+
+func (z *ZapLogger) Infof(template string, args ...any) {
+	z.logger.Infof(template, args...)
 }
 
 func (z *ZapLogger) Warn(msg string, keysAndValues ...any) {
 	z.logger.Warnw(msg, keysAndValues...)
 }
 
+func (z *ZapLogger) Warnf(template string, args ...any) {
+	z.logger.Warnf(template, args...)
+}
+
 func (z *ZapLogger) Error(msg string, keysAndValues ...any) {
 	z.logger.Errorw(msg, keysAndValues...)
+}
+
+func (z *ZapLogger) Errorf(template string, args ...any) {
+	z.logger.Errorf(template, args...)
 }
 
 func (z *ZapLogger) Panic(msg string, keysAndValues ...any) {
 	z.logger.Panicw(msg, keysAndValues...)
 }
 
+func (z *ZapLogger) Panicf(template string, args ...any) {
+	z.logger.Panicf(template, args...)
+}
+
 func (z *ZapLogger) Fatal(msg string, keysAndValues ...any) {
 	z.logger.Fatalw(msg, keysAndValues...)
+}
+
+func (z *ZapLogger) Fatalf(template string, args ...any) {
+	z.logger.Fatalf(template, args...)
 }
 
 func (z *ZapLogger) With(keysAndValues ...any) Logger {

@@ -4,9 +4,13 @@ metadata:
   name: qms-config
 data:
   config.yaml: |
-    http_port: 6789
+    target: all
     otel_collector_target: grafana-agent-traces:4317
-    allocation_quota_service:
+
+    server:
+      http_port: 6789
+
+    alloc:
       backend: local
       local:
         dir: /tmp/qms/data/alloc
@@ -16,7 +20,7 @@ data:
           strategy:
             capacity: 10
 
-    rate_quota_service:
+    rate:
       backend: memory
       quotas:
         - namespace: namespace1

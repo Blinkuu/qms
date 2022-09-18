@@ -20,7 +20,6 @@ import (
 	tracesdk "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/semconv/v1.12.0"
 	"go.opentelemetry.io/otel/trace"
-	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
@@ -29,7 +28,7 @@ import (
 )
 
 func main() {
-	logger := log.Must(log.NewZapLogger("qms", "debug", []string{"stdout"}))
+	logger := log.Must(log.NewZapLogger("qms", "info", []string{"stderr"}))
 	defer func() {
 		err := logger.Close()
 		if err != nil && !errors.Is(err, syscall.ENOTTY) {
@@ -39,6 +38,7 @@ func main() {
 	}()
 
 	logger.Info("starting qms")
+	defer logger.Info("shutting down qms")
 
 	cfg, err := loadConfig()
 	if err != nil {
@@ -61,23 +61,27 @@ func main() {
 	}
 
 	if err := runAppAndWaitForSignal(a); err != nil {
-		logger.Fatal("failed to shutdown qms server", zap.Error(err))
+		logger.Fatal("failed to run app and wait for signal", "err", err)
 	}
-
-	logger.Info("shutting down qms")
 }
 
 func runAppAndWaitForSignal(app *app.App) error {
 	errChan := make(chan error)
 	go func() {
-		errChan <- app.Run()
+		errChan <- app.Run(context.Background())
 		close(errChan)
 	}()
 
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 
-	<-sigChan
+	var err error
+	select {
+	case <-sigChan:
+	case err = <-errChan:
+		return fmt.Errorf("failed to run app: %w", err)
+	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
@@ -85,7 +89,7 @@ func runAppAndWaitForSignal(app *app.App) error {
 		return fmt.Errorf("failed to shutdown app: %w", err)
 	}
 
-	return <-errChan
+	return err
 }
 
 func loadConfig() (app.Config, error) {
@@ -112,7 +116,7 @@ func setupOpenTelemetryExporter(target string) (*otlptrace.Exporter, error) {
 		ctx,
 		target,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
-		grpc.WithBlock(),
+		//grpc.WithBlock(),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to opentelemetry collector: %w", err)
