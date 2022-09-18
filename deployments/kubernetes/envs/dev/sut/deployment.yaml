@@ -1,0 +1,25 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sut
+  labels:
+    app: sut
+  annotations:
+    prometheus.io/scrape: 'true'
+    prometheus.io/path: '/metrics'
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: sut
+  template:
+    metadata:
+      labels:
+        app: sut
+    spec:
+      containers:
+        - name: sut
+          image: sut:latest
+          ports:
+            - name: sut-http
+              containerPort: 8080

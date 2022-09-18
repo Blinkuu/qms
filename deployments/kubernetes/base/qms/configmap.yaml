@@ -23,8 +23,8 @@ data:
           resource: resource1
           strategy:
             algorithm: token-bucket
-            unit: second
-            requests_per_unit: 10
+            unit: minute
+            requests_per_unit: 120
         - namespace: namespace2
           resource: resource2
           strategy:

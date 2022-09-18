@@ -3,11 +3,18 @@ load('ext://helm_resource', 'helm_resource', 'helm_repo')
 # Add Helm repos
 helm_repo('bitnami-charts', 'https://charts.bitnami.com/bitnami')
 
-# Compile QMS
+# Compile
 local_resource(
   'go-compile-qms',
   cmd='GOARCH=amd64 GOOS=linux make build',
-  deps=['./Makefile', './cmd', './internal', './pkg'],
+  deps=['./Makefile', './cmd/qms', './internal', './pkg'],
+  labels=["local-job"],
+)
+
+local_resource(
+  'go-compile-sut',
+  cmd='GOARCH=amd64 GOOS=linux make build-sut',
+  deps=['./Makefile', './cmd/sut', './internal', './pkg'],
   labels=["local-job"],
 )
 
@@ -16,6 +23,12 @@ docker_build(
     'qms',
     '.',
     dockerfile='cmd/qms/Dockerfile',
+)
+
+docker_build(
+    'sut',
+    '.',
+    dockerfile='cmd/sut/Dockerfile',
 )
 
 # Setup resources
@@ -73,4 +86,10 @@ k8s_resource(
         link("http://localhost:6789/metrics", "/metrics"),
      ],
      labels=["qms"],
+)
+
+k8s_resource(
+    'sut',
+     port_forwards=['8080'],
+     labels=["sut"],
 )
