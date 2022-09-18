@@ -14,7 +14,7 @@ local_resource(
 local_resource(
   'go-compile-sut',
   cmd='GOARCH=amd64 GOOS=linux make build-sut',
-  deps=['./cmd/sut'],
+  deps=['./Makefile', './cmd/sut', './internal', './pkg'],
   labels=["local-job"],
 )
 
