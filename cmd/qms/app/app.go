@@ -89,10 +89,10 @@ func (a *App) Run(ctx context.Context) error {
 	pingHandler := handlers.NewPingHTTPHandler(a.ping)
 	v1ApiRouter.Handle("/ping", pingHandler.Ping())
 
-	rateHandler := handlers.NewRateQuotaHTTPHandler(a.rate)
+	rateHandler := handlers.NewRateHTTPHandler(a.rate)
 	v1ApiRouter.HandleFunc("/allow", rateHandler.Allow()).Methods(http.MethodPost)
 
-	allocHandler := handlers.NewAllocationQuotaHTTPHandler(a.alloc)
+	allocHandler := handlers.NewAllocationHTTPHandler(a.alloc)
 	v1ApiRouter.HandleFunc("/alloc", allocHandler.Alloc()).Methods(http.MethodPost)
 	v1ApiRouter.HandleFunc("/free", allocHandler.Free()).Methods(http.MethodPost)
 

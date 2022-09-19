@@ -7,17 +7,17 @@ import (
 	"github.com/Blinkuu/qms/internal/core/ports"
 )
 
-type RateQuotaHTTPHandler struct {
-	service ports.RateQuotaService
+type RateHTTPHandler struct {
+	service ports.RateService
 }
 
-func NewRateQuotaHTTPHandler(service ports.RateQuotaService) *RateQuotaHTTPHandler {
-	return &RateQuotaHTTPHandler{
+func NewRateHTTPHandler(service ports.RateService) *RateHTTPHandler {
+	return &RateHTTPHandler{
 		service: service,
 	}
 }
 
-func (h *RateQuotaHTTPHandler) Allow() http.HandlerFunc {
+func (h *RateHTTPHandler) Allow() http.HandlerFunc {
 	type allowRequest struct {
 		Namespace string `json:"namespace"`
 		Resource  string `json:"resource"`

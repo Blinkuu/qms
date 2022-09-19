@@ -7,17 +7,17 @@ import (
 	"github.com/Blinkuu/qms/internal/core/ports"
 )
 
-type AllocationQuotaHTTPHandler struct {
-	service ports.AllocationQuotaService
+type AllocHTTPHandler struct {
+	service ports.AllocService
 }
 
-func NewAllocationQuotaHTTPHandler(service ports.AllocationQuotaService) *AllocationQuotaHTTPHandler {
-	return &AllocationQuotaHTTPHandler{
+func NewAllocationHTTPHandler(service ports.AllocService) *AllocHTTPHandler {
+	return &AllocHTTPHandler{
 		service: service,
 	}
 }
 
-func (h *AllocationQuotaHTTPHandler) Alloc() http.HandlerFunc {
+func (h *AllocHTTPHandler) Alloc() http.HandlerFunc {
 	type allocRequest struct {
 		Namespace string `json:"namespace"`
 		Resource  string `json:"resource"`
@@ -57,7 +57,7 @@ func (h *AllocationQuotaHTTPHandler) Alloc() http.HandlerFunc {
 	}
 }
 
-func (h *AllocationQuotaHTTPHandler) Free() http.HandlerFunc {
+func (h *AllocHTTPHandler) Free() http.HandlerFunc {
 	type freeRequest struct {
 		Namespace string `json:"namespace"`
 		Resource  string `json:"resource"`
