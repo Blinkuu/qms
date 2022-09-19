@@ -16,9 +16,9 @@ const (
 )
 
 type StrategyConfig struct {
-	Algorithm      string `mapstructure:"algorithm"`
-	Unit           string `mapstructure:"unit"`
-	RequestPerUnit int64  `mapstructure:"requests_per_unit"`
+	Algorithm      string `yaml:"algorithm"`
+	Unit           string `yaml:"unit"`
+	RequestPerUnit int64  `yaml:"requests_per_unit"`
 }
 
 type Strategy interface {

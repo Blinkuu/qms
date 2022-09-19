@@ -10,7 +10,7 @@ import (
 )
 
 type StrategyConfig struct {
-	Capacity int64 `mapstructure:"capacity"`
+	Capacity int64 `yaml:"capacity"`
 }
 
 type Strategy interface {

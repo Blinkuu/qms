@@ -58,6 +58,11 @@ func NewZapLogger(name, lvl string, outputPaths []string) (*ZapLogger, error) {
 		return nil, fmt.Errorf("failed to build zap config: %w", err)
 	}
 
+	_, err = zap.RedirectStdLogAt(logger, level)
+	if err != nil {
+		return nil, fmt.Errorf("failed to redirect std logger: %w", err)
+	}
+
 	return &ZapLogger{
 		logger: logger.WithOptions(zap.AddCallerSkip(1)).Named(name).Sugar(),
 	}, nil
