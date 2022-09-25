@@ -4,6 +4,11 @@ otel_collector_target: grafana-agent-traces:4317
 server:
   http_port: 6789
 
+memberlist:
+  join_members:
+    - 127.0.0.1:7946
+    -
+
 alloc:
   backend: local
   local:

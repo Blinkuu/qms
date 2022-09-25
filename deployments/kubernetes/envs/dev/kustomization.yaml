@@ -1,8 +1,14 @@
 resources:
-  - ../../base
+  - ../../base/qms-microservices
   - grafana
   - grafana-agent
   - loki
   - mimir
   - tempo
   - sut
+
+replicas:
+  - name: qms-rate
+    count: 3
+  - name: qms-alloc
+    count: 1

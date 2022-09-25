@@ -1,0 +1,34 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: qms-rate-config
+data:
+  config.yaml: |
+    target: rate
+    otel_collector_target: grafana-agent-traces:4317
+
+    server:
+      http_port: 6789
+
+    memberlist:
+      join_members:
+        - qms-rate.default.svc.cluster.local
+    
+    kv:
+      backend: raft
+    
+    rate:
+      backend: memory
+      quotas:
+        - namespace: namespace1
+          resource: resource1
+          strategy:
+            algorithm: token-bucket
+            unit: minute
+            requests_per_unit: 120
+        - namespace: namespace2
+          resource: resource2
+          strategy:
+            algorithm: token-bucket
+            unit: second
+            requests_per_unit: 10

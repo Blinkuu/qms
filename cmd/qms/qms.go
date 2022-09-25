@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"flag"
 	"fmt"
 	"os"
 	"os/signal"
@@ -10,6 +11,7 @@ import (
 	"time"
 
 	"github.com/benbjohnson/clock"
+	"github.com/mitchellh/mapstructure"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/spf13/viper"
 	"go.opentelemetry.io/otel"
@@ -100,12 +102,17 @@ func loadConfig() (app.Config, error) {
 		return app.Config{}, fmt.Errorf("failed to read in config: %w", err)
 	}
 
-	var config app.Config
-	if err := viper.Unmarshal(&config); err != nil {
+	cfg := app.Config{}
+	cfg.RegisterFlagsWithPrefix(flag.CommandLine, "")
+
+	opt := viper.DecoderConfigOption(func(decoderConfig *mapstructure.DecoderConfig) {
+		decoderConfig.TagName = "yaml"
+	})
+	if err := viper.Unmarshal(&cfg, opt); err != nil {
 		return app.Config{}, fmt.Errorf("failed to unmarshal config: %w", err)
 	}
 
-	return config, nil
+	return cfg, nil
 }
 
 func setupOpenTelemetryExporter(target string) (*otlptrace.Exporter, error) {

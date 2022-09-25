@@ -12,7 +12,9 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.opentelemetry.io/otel/trace"
 
+	"github.com/Blinkuu/qms/internal/core/domain/cloud"
 	"github.com/Blinkuu/qms/internal/core/services/alloc"
+	"github.com/Blinkuu/qms/internal/core/services/memberlist"
 	"github.com/Blinkuu/qms/internal/core/services/ping"
 	"github.com/Blinkuu/qms/internal/core/services/rate"
 	"github.com/Blinkuu/qms/internal/core/services/server"
@@ -21,6 +23,7 @@ import (
 )
 
 const (
+	Core         = "core"
 	SingleBinary = "all"
 )
 
@@ -35,6 +38,7 @@ type App struct {
 	serviceNamesAndServices map[string]services.Service
 	server                  *server.Service
 	ping                    *ping.Service
+	memberlist              *memberlist.Service
 	alloc                   *alloc.Service
 	rate                    *rate.Service
 }
@@ -51,16 +55,20 @@ func New(cfg Config, clock clock.Clock, logger log.Logger, reg prometheus.Regist
 
 	a.modulesManager.RegisterModule(server.ServiceName, a.initServer, modules.UserInvisibleModule)
 	a.modulesManager.RegisterModule(ping.ServiceName, a.initPing, modules.UserInvisibleModule)
+	a.modulesManager.RegisterModule(memberlist.ServiceName, a.initMemberlist, modules.UserInvisibleModule)
 	a.modulesManager.RegisterModule(alloc.ServiceName, a.initAlloc)
 	a.modulesManager.RegisterModule(rate.ServiceName, a.initRate)
+	a.modulesManager.RegisterModule(Core, nil)
 	a.modulesManager.RegisterModule(SingleBinary, nil)
 
 	deps := map[string][]string{
-		server.ServiceName: nil,
-		ping.ServiceName:   {server.ServiceName},
-		alloc.ServiceName:  {server.ServiceName},
-		rate.ServiceName:   {server.ServiceName},
-		SingleBinary:       {ping.ServiceName, alloc.ServiceName, rate.ServiceName},
+		server.ServiceName:     nil,
+		ping.ServiceName:       {server.ServiceName},
+		memberlist.ServiceName: {server.ServiceName},
+		Core:                   {server.ServiceName, ping.ServiceName, memberlist.ServiceName},
+		alloc.ServiceName:      {Core},
+		rate.ServiceName:       {Core},
+		SingleBinary:           {Core, alloc.ServiceName, rate.ServiceName},
 	}
 
 	for mod, targets := range deps {
@@ -83,18 +91,24 @@ func (a *App) Run(ctx context.Context) error {
 		return fmt.Errorf("failed to init module services: %w", err)
 	}
 
-	a.server.HTTP.Handle("/metrics", promhttp.Handler())
-	v1ApiRouter := a.server.HTTP.PathPrefix("/api/v1").Subrouter()
-
 	pingHandler := handlers.NewPingHTTPHandler(a.ping)
-	v1ApiRouter.Handle("/ping", pingHandler.Ping())
+	a.server.HTTP.Handle("/ping", pingHandler.Ping())
 
-	rateHandler := handlers.NewRateHTTPHandler(a.rate)
-	v1ApiRouter.HandleFunc("/allow", rateHandler.Allow()).Methods(http.MethodPost)
+	memberlistHandler := handlers.NewMemberlistHTTPHandler(a.memberlist)
+	a.server.HTTP.Handle("/memberlist", memberlistHandler.Memberlist()).Methods(http.MethodGet)
 
-	allocHandler := handlers.NewAllocationHTTPHandler(a.alloc)
-	v1ApiRouter.HandleFunc("/alloc", allocHandler.Alloc()).Methods(http.MethodPost)
-	v1ApiRouter.HandleFunc("/free", allocHandler.Free()).Methods(http.MethodPost)
+	a.server.HTTP.Handle("/metrics", promhttp.Handler())
+
+	{
+		v1ApiRouter := a.server.HTTP.PathPrefix("/api/v1").Subrouter()
+
+		rateHandler := handlers.NewRateHTTPHandler(a.rate)
+		v1ApiRouter.HandleFunc("/allow", rateHandler.Allow()).Methods(http.MethodPost)
+
+		allocHandler := handlers.NewAllocHTTPHandler(a.alloc)
+		v1ApiRouter.HandleFunc("/alloc", allocHandler.Alloc()).Methods(http.MethodPost)
+		v1ApiRouter.HandleFunc("/free", allocHandler.Free()).Methods(http.MethodPost)
+	}
 
 	svcs := make([]services.Service, 0, len(a.serviceNamesAndServices))
 	for _, svc := range a.serviceNamesAndServices {
@@ -167,6 +181,35 @@ func (a *App) initServer() (services.Service, error) {
 	return a.server, nil
 }
 
+type loggingEventDelegate struct {
+	logger log.Logger
+}
+
+func (l loggingEventDelegate) NotifyJoin(instance *cloud.Instance) {
+	l.logger.Info("NotifyJoin()", "instance", instance)
+}
+
+func (l loggingEventDelegate) NotifyLeave(instance *cloud.Instance) {
+	l.logger.Info("NotifyLeave()", "instance", instance)
+}
+
+func (l loggingEventDelegate) NotifyUpdate(instance *cloud.Instance) {
+	l.logger.Info("NotifyUpdate()", "instance", instance)
+}
+
+func (a *App) initMemberlist() (services.Service, error) {
+	var err error
+	eventDelegate := loggingEventDelegate{logger: a.logger}
+	a.memberlist, err = memberlist.NewService(
+		a.cfg.MemberlistConfig,
+		a.logger,
+		eventDelegate,
+		a.cfg.Target,
+		a.cfg.ServerConfig.HTTPPort,
+	)
+	return a.memberlist, err
+}
+
 func (a *App) initPing() (services.Service, error) {
 	a.ping = ping.NewService(a.logger)
 	return a.ping, nil
@@ -174,12 +217,12 @@ func (a *App) initPing() (services.Service, error) {
 
 func (a *App) initAlloc() (services.Service, error) {
 	var err error
-	a.alloc, err = alloc.NewService(a.cfg.AllocServiceConfig, a.logger)
+	a.alloc, err = alloc.NewService(a.cfg.AllocConfig, a.logger)
 	return a.alloc, err
 }
 
 func (a *App) initRate() (services.Service, error) {
 	var err error
-	a.rate, err = rate.NewService(a.cfg.RateServiceConfig, a.clock, a.logger)
+	a.rate, err = rate.NewService(a.cfg.RateConfig, a.clock, a.logger)
 	return a.rate, err
 }

@@ -80,10 +80,19 @@ k8s_resource(
 )
 
 k8s_resource(
-    'qms',
-     port_forwards=['6789'],
+    'qms-rate',
+     port_forwards=['10000:6789'],
      links=[
-        link("http://localhost:6789/metrics", "/metrics"),
+        link("http://localhost:10000/metrics", "/metrics"),
+     ],
+     labels=["qms"],
+)
+
+k8s_resource(
+    'qms-alloc',
+     port_forwards=['10001:6789'],
+     links=[
+        link("http://localhost:10000/metrics", "/metrics"),
      ],
      labels=["qms"],
 )

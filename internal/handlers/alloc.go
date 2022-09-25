@@ -11,7 +11,7 @@ type AllocHTTPHandler struct {
 	service ports.AllocService
 }
 
-func NewAllocationHTTPHandler(service ports.AllocService) *AllocHTTPHandler {
+func NewAllocHTTPHandler(service ports.AllocService) *AllocHTTPHandler {
 	return &AllocHTTPHandler{
 		service: service,
 	}

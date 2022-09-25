@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: qms-rate
+  labels:
+    app: qms-rate
+  annotations:
+    prometheus.io/scrape: 'true'
+    prometheus.io/port: '6789'
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: qms-rate
+  template:
+    metadata:
+      labels:
+        app: qms-rate
+    spec:
+      containers:
+        - name: qms-rate
+          image: qms:latest
+          ports:
+            - name: http
+              protocol: TCP
+              containerPort: 6789
+            - name: gossip
+              protocol: TCP
+              containerPort: 7946
+          volumeMounts:
+            - name: qms-rate-config
+              mountPath: /app/configs
+      volumes:
+        - name: qms-rate-config
+          configMap:
+            name: qms-rate-config

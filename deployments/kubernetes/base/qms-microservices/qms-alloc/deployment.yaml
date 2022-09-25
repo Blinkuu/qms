@@ -1,32 +1,36 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: qms
+  name: qms-alloc
   labels:
-    app: qms
+    app: qms-alloc
   annotations:
     prometheus.io/scrape: 'true'
-    prometheus.io/path: '/metrics'
+    prometheus.io/port: '6789'
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: qms
+      app: qms-alloc
   template:
     metadata:
       labels:
-        app: qms
+        app: qms-alloc
     spec:
       containers:
-        - name: qms
+        - name: qms-alloc
           image: qms:latest
           ports:
-            - name: qms-http
+            - name: http
+              protocol: TCP
               containerPort: 6789
+            - name: gossip
+              protocol: TCP
+              containerPort: 7946
           volumeMounts:
-            - name: qms-config
+            - name: qms-alloc-config
               mountPath: /app/configs
       volumes:
-        - name: qms-config
+        - name: qms-alloc-config
           configMap:
-            name: qms-config
+            name: qms-alloc-config

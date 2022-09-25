@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: qms
+  labels:
+    app: qms
+  annotations:
+    prometheus.io/scrape: 'true'
+    prometheus.io/port: '6789'
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: qms
+  template:
+    metadata:
+      labels:
+        app: qms
+    spec:
+      containers:
+        - name: qms
+          image: qms:latest
+          ports:
+            - name: qms-http
+              protocol: TCP
+              containerPort: 6789
+            - name: qms-gossip
+              protocol: TCP
+              containerPort: 7946
+          volumeMounts:
+            - name: qms-config
+              mountPath: /app/configs
+      volumes:
+        - name: qms-config
+          configMap:
+            name: qms-config
