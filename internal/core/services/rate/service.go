@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -47,7 +48,8 @@ func NewService(cfg Config, clock clock.Clock, logger log.Logger) (*Service, err
 }
 
 func (s *Service) Allow(ctx context.Context, namespace, resource string, tokens int64) (time.Duration, bool, error) {
-	s.logger.Info("allow called", "namespace", namespace, "resource", resource, "tokens", tokens)
+	hostname, _ := os.Hostname()
+	s.logger.Info("allow called", "namespace", namespace, "resource", resource, "tokens", tokens, "hostname", hostname)
 
 	id := strings.Join([]string{namespace, resource}, "_")
 

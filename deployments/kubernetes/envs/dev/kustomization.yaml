@@ -1,5 +1,6 @@
 resources:
   - ../../base/qms-microservices
+  - ../../base/qms-monolith
   - grafana
   - grafana-agent
   - loki
@@ -8,7 +9,13 @@ resources:
   - sut
 
 replicas:
+  # Microservices mode
+  - name: qms-proxy
+    count: 3
   - name: qms-rate
     count: 3
   - name: qms-alloc
-    count: 1
+    count: 3
+  # Monolith mode
+  - name: qms
+    count: 3

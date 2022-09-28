@@ -1,3 +1,4 @@
 resources:
   - qms-alloc
+  - qms-proxy
   - qms-rate

@@ -7,7 +7,7 @@ import (
 
 	"github.com/hashicorp/memberlist"
 
-	"github.com/Blinkuu/qms/internal/core/domain/cloud"
+	"github.com/Blinkuu/qms/internal/core/domain"
 )
 
 type member struct {
@@ -56,11 +56,11 @@ func (m *member) String() string {
 	return fmt.Sprintf("%s/%s/%d/%d", m.Service, m.Hostname, m.HTTPPort, m.GossipPort)
 }
 
-func nodeToInstance(node *memberlist.Node) (*cloud.Instance, error) {
+func nodeToInstance(node *memberlist.Node) (domain.Instance, error) {
 	member, err := newMemberFromString(node.Name)
 	if err != nil {
-		return nil, fmt.Errorf("failed to split member name: memberName=%s", node.Name)
+		return domain.Instance{}, fmt.Errorf("failed to split member name: memberName=%s", node.Name)
 	}
 
-	return cloud.NewInstance(member.Service, node.Addr.String(), member.HTTPPort, member.GossipPort), nil
+	return domain.NewInstance(member.Service, node.Addr.String(), member.HTTPPort, member.GossipPort), nil
 }

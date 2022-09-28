@@ -7,11 +7,11 @@ spec:
   selector:
     app: qms
   ports:
-    - name: qms-http
+    - name: http
       protocol: TCP
       port: 6789
-      targetPort: 6789
-    - name: qms-gossip
+      targetPort: http
+    - name: gossip
       protocol: TCP
       port: 7946
-      targetPort: 7946
+      targetPort: gossip

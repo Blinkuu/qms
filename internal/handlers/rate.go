@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/Blinkuu/qms/internal/core/ports"
+	"github.com/Blinkuu/qms/pkg/dto"
 )
 
 type RateHTTPHandler struct {
@@ -18,26 +19,15 @@ func NewRateHTTPHandler(service ports.RateService) *RateHTTPHandler {
 }
 
 func (h *RateHTTPHandler) Allow() http.HandlerFunc {
-	type allowRequest struct {
-		Namespace string `json:"namespace"`
-		Resource  string `json:"resource"`
-		Tokens    int64  `json:"tokens"`
-	}
-
-	type allowResult struct {
-		WaitTime int64 `json:"wait_time"`
-		OK       bool  `json:"ok"`
-	}
-
 	return func(w http.ResponseWriter, r *http.Request) {
-		var req allowRequest
-		err := json.NewDecoder(r.Body).Decode(&req)
+		var allowRequestBody dto.AllowRequestBody
+		err := json.NewDecoder(r.Body).Decode(&allowRequestBody)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 
-		waitTime, ok, err := h.service.Allow(r.Context(), req.Namespace, req.Resource, req.Tokens)
+		waitTime, ok, err := h.service.Allow(r.Context(), allowRequestBody.Namespace, allowRequestBody.Resource, allowRequestBody.Tokens)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -45,14 +35,12 @@ func (h *RateHTTPHandler) Allow() http.HandlerFunc {
 
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(
-			response{
-				Status: StatusOK,
-				Msg:    MsgOK,
-				Result: allowResult{
+			dto.NewOKResponseBody(
+				dto.AllowResponseBody{
 					WaitTime: waitTime.Nanoseconds(),
 					OK:       ok,
 				},
-			},
+			),
 		)
 	}
 }

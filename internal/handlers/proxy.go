@@ -8,17 +8,44 @@ import (
 	"github.com/Blinkuu/qms/pkg/dto"
 )
 
-type AllocHTTPHandler struct {
-	service ports.AllocService
+type ProxyHTTPHandler struct {
+	service ports.ProxyService
 }
 
-func NewAllocHTTPHandler(service ports.AllocService) *AllocHTTPHandler {
-	return &AllocHTTPHandler{
+func NewProxyHTTPHandler(service ports.ProxyService) *ProxyHTTPHandler {
+	return &ProxyHTTPHandler{
 		service: service,
 	}
 }
 
-func (h *AllocHTTPHandler) Alloc() http.HandlerFunc {
+func (h *ProxyHTTPHandler) Allow() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var allowRequestBody dto.AllowRequestBody
+		err := json.NewDecoder(r.Body).Decode(&allowRequestBody)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		waitTime, ok, err := h.service.Allow(r.Context(), allowRequestBody.Namespace, allowRequestBody.Resource, allowRequestBody.Tokens)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(
+			dto.NewOKResponseBody(
+				dto.AllowResponseBody{
+					WaitTime: waitTime.Nanoseconds(),
+					OK:       ok,
+				},
+			),
+		)
+	}
+}
+
+func (h *ProxyHTTPHandler) Alloc() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var allocRequestBody dto.AllocRequestBody
 		err := json.NewDecoder(r.Body).Decode(&allocRequestBody)
@@ -45,7 +72,7 @@ func (h *AllocHTTPHandler) Alloc() http.HandlerFunc {
 	}
 }
 
-func (h *AllocHTTPHandler) Free() http.HandlerFunc {
+func (h *ProxyHTTPHandler) Free() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var freeRequestBody dto.FreeRequestBody
 		err := json.NewDecoder(r.Body).Decode(&freeRequestBody)

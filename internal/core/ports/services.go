@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/Blinkuu/qms/internal/core/domain/cloud"
+	"github.com/Blinkuu/qms/internal/core/domain"
 )
 
 type PingService interface {
@@ -12,7 +12,7 @@ type PingService interface {
 }
 
 type MemberlistService interface {
-	Members() ([]*cloud.Instance, error)
+	Members(ctx context.Context) ([]domain.Instance, error)
 }
 
 type KVService interface {
@@ -32,4 +32,9 @@ type RateService interface {
 type AllocService interface {
 	Alloc(ctx context.Context, namespace, resource string, tokens int64) (int64, bool, error)
 	Free(ctx context.Context, namespace, resource string, tokens int64) (int64, bool, error)
+}
+
+type ProxyService interface {
+	RateService
+	AllocService
 }

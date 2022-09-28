@@ -11,11 +11,8 @@ data:
       http_port: 6789
 
     memberlist:
-      join_members:
+      join_addresses:
         - qms-rate.default.svc.cluster.local
-    
-    kv:
-      backend: raft
     
     rate:
       backend: memory

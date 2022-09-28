@@ -1,9 +1,9 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: qms
+  name: qms-proxy
   labels:
-    app: qms
+    app: qms-proxy
   annotations:
     prometheus.io/scrape: 'true'
     prometheus.io/port: '6789'
@@ -11,14 +11,14 @@ spec:
   replicas: 1
   selector:
     matchLabels:
-      app: qms
+      app: qms-proxy
   template:
     metadata:
       labels:
-        app: qms
+        app: qms-proxy
     spec:
       containers:
-        - name: qms
+        - name: qms-proxy
           image: qms:latest
           ports:
             - name: http
@@ -28,9 +28,9 @@ spec:
               protocol: TCP
               containerPort: 7946
           volumeMounts:
-            - name: qms-config
+            - name: qms-proxy-config
               mountPath: /app/configs
       volumes:
-        - name: qms-config
+        - name: qms-proxy-config
           configMap:
-            name: qms-config
+            name: qms-proxy-config

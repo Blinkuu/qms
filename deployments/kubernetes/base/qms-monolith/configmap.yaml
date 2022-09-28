@@ -10,13 +10,16 @@ data:
     server:
       http_port: 6789
 
-    kv:
-      backend: memberlist
-      memberlist:
-        abort_if_cluster_join_fails: true
-        join_members:
-          - qms.default.svc.cluster.local:7946
-
+    memberlist:
+      join_addresses:
+        - qms.default.svc.cluster.local
+    
+    proxy:
+      rate_addresses:
+        - dnssrv+qms.default.svc.cluster.local
+      alloc_addresses:
+        - dnssrv+qms.default.svc.cluster.local
+    
     alloc:
       backend: local
       local:
