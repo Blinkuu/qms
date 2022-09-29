@@ -58,8 +58,7 @@ func NewService(cfg Config, logger log.Logger, discoverer cloud.Discoverer, memb
 	}
 
 	// TODO: Hash ring should be implemented using static node IDs
-	// TODO: First, implement proxy service using only memberlistClient (simple hashing?). Then, implement a ring.Service
-	//		 that uses a kv.Service to build a hash ring and swap
+	// TODO: Implement hash ring service
 
 	s.NamedService = services.NewBasicService(s.start, s.run, s.stop).WithName(ServiceName)
 
