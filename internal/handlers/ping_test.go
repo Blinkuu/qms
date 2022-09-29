@@ -9,6 +9,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
+	"github.com/Blinkuu/qms/pkg/dto"
 )
 
 type mockPingService struct {
@@ -41,9 +43,9 @@ func TestPingHTTPHandler_Ping(t *testing.T) {
 	handler.ServeHTTP(respRecorder, req)
 
 	// Then
-	var resp response
+	var resp dto.ResponseBody[dto.PingResponseBody]
 	require.NoError(t, json.NewDecoder(respRecorder.Body).Decode(&resp))
 	require.Equal(t, http.StatusOK, respRecorder.Code)
-	require.Equal(t, StatusOK, resp.Status)
-	require.Equal(t, "pong", resp.Result)
+	require.Equal(t, dto.StatusOK, resp.Status)
+	require.Equal(t, dto.PingResponseBody{Msg: "pong"}, resp.Result)
 }
