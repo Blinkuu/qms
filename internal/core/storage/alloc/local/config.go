@@ -11,5 +11,5 @@ type Config struct {
 }
 
 func (c *Config) RegisterFlagsWithPrefix(f *flag.FlagSet, prefix string) {
-	f.StringVar(&c.Dir, strutil.WithPrefixOrDefault(prefix, "dir"), "/tmp/qms/data", "")
+	f.StringVar(&c.Dir, strutil.WithPrefixOrDefault(prefix, "dir"), "/tmp/qms/data/local", "")
 }

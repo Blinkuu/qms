@@ -3,15 +3,17 @@ package rate
 import (
 	"flag"
 
+	"github.com/Blinkuu/qms/internal/core/storage/alloc"
 	"github.com/Blinkuu/qms/pkg/strutil"
 )
 
 type Config struct {
-	Backend string    `yaml:"backend"`
-	Quotas  quotaList `yaml:"quotas"`
+	Quotas  quotaList    `yaml:"quotas"`
+	Storage alloc.Config `yaml:"storage"`
 }
 
 func (c *Config) RegisterFlagsWithPrefix(f *flag.FlagSet, prefix string) {
-	f.StringVar(&c.Backend, strutil.WithPrefixOrDefault(prefix, "backend"), "memory", "")
 	f.Var(&c.Quotas, strutil.WithPrefixOrDefault(prefix, "quotas"), "")
+
+	c.Storage.RegisterFlagsWithPrefix(f, strutil.WithPrefixOrDefault(prefix, "storage"))
 }
