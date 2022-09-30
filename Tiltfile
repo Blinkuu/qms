@@ -1,5 +1,32 @@
 load('ext://helm_resource', 'helm_resource', 'helm_repo')
 
+# Parse args
+config.define_string_list("to-run", args=True)
+cfg = config.parse()
+resources = [
+    'go-compile-qms',
+    'go-compile-sut',
+    'redis',
+    'grafana-agent-logs',
+    'grafana-agent-metrics',
+    'grafana-agent-traces',
+    'grafana',
+    'loki',
+    'mimir',
+    'tempo',
+]
+groups = {
+  'monolith': ['qms'],
+  'microservices': ['qms-proxy', 'qms-rate', 'qms-alloc'],
+}
+for arg in cfg.get('to-run', []):
+  if arg in groups:
+    resources += groups[arg]
+  else:
+    # also support specifying individual services instead of groups, e.g. `tilt up a b d`
+    resources.append(arg)
+config.set_enabled_resources(resources)
+
 # Add Helm repos
 helm_repo('bitnami-charts', 'https://charts.bitnami.com/bitnami')
 
@@ -58,13 +85,13 @@ k8s_resource(
 )
 
 k8s_resource(
-    'loki',
+    'grafana',
+    port_forwards=['3000'],
     labels=['observability'],
 )
 
 k8s_resource(
-    'grafana',
-    port_forwards=['3000'],
+    'loki',
     labels=['observability'],
 )
 
@@ -75,12 +102,12 @@ k8s_resource(
 
 k8s_resource(
     'tempo',
-    port_forwards=['3200'],
     labels=['observability'],
 )
 
+# Microservices
 k8s_resource(
-    'qms-rate',
+    'qms-proxy',
      port_forwards=['10000:6789'],
      links=[
         link("http://localhost:10000/metrics", "/metrics"),
@@ -89,8 +116,27 @@ k8s_resource(
 )
 
 k8s_resource(
-    'qms-alloc',
+    'qms-rate',
      port_forwards=['10001:6789'],
+     links=[
+        link("http://localhost:10000/metrics", "/metrics"),
+     ],
+     labels=["qms"],
+)
+
+k8s_resource(
+    'qms-alloc',
+     port_forwards=['10002:6789'],
+     links=[
+        link("http://localhost:10000/metrics", "/metrics"),
+     ],
+     labels=["qms"],
+)
+
+# Monolith
+k8s_resource(
+    'qms',
+     port_forwards=['10000:6789'],
      links=[
         link("http://localhost:10000/metrics", "/metrics"),
      ],

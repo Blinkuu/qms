@@ -10,8 +10,8 @@ spec:
     - name: http
       protocol: TCP
       port: 6789
-      targetPort: 6789
+      targetPort: http
     - name: gossip
       protocol: TCP
       port: 7946
-      targetPort: 7946
+      targetPort: gossip

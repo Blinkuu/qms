@@ -2,33 +2,54 @@ package memberlist
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"os"
 	"strings"
 	"time"
 
 	"github.com/grafana/dskit/backoff"
+	"github.com/grafana/dskit/flagext"
 	"github.com/grafana/dskit/services"
 	"github.com/hashicorp/memberlist"
-	"github.com/thanos-io/thanos/pkg/discovery/dns"
 
-	"github.com/Blinkuu/qms/internal/core/domain/cloud"
+	"github.com/Blinkuu/qms/internal/core/domain"
+	"github.com/Blinkuu/qms/pkg/cloud"
 	"github.com/Blinkuu/qms/pkg/log"
+	"github.com/Blinkuu/qms/pkg/strutil"
 )
 
 const (
 	ServiceName = "memberlist"
 )
 
-type Service struct {
-	services.NamedService
-	cfg         Config
-	logger      log.Logger
-	dnsProvider *dns.Provider
-	memberlist  *memberlist.Memberlist
+type Config struct {
+	JoinAddresses  flagext.StringSlice `yaml:"join_addresses"`
+	RejoinInterval time.Duration       `yaml:"rejoin_interval"`
+	MinJoinBackoff time.Duration       `yaml:"min_join_backoff" `
+	MaxJoinBackoff time.Duration       `yaml:"max_join_backoff"`
+	MaxJoinRetries int                 `yaml:"max_join_retries"`
+	LeaveTimeout   time.Duration       `yaml:"leave_timeout"`
 }
 
-func NewService(cfg Config, logger log.Logger, eventDelegate EventDelegate, service string, httpPort int) (*Service, error) {
+func (c *Config) RegisterFlagsWithPrefix(f *flag.FlagSet, prefix string) {
+	f.Var(&c.JoinAddresses, strutil.WithPrefixOrDefault(prefix, "join_addresses"), "")
+	f.DurationVar(&c.RejoinInterval, strutil.WithPrefixOrDefault(prefix, "rejoin_interval"), 0, "")
+	f.DurationVar(&c.MinJoinBackoff, strutil.WithPrefixOrDefault(prefix, "min_join_backoff"), 1*time.Second, "")
+	f.DurationVar(&c.MaxJoinBackoff, strutil.WithPrefixOrDefault(prefix, "max_join_backoff"), 30*time.Second, "")
+	f.IntVar(&c.MaxJoinRetries, strutil.WithPrefixOrDefault(prefix, "max_join_retries"), 10, "")
+	f.DurationVar(&c.LeaveTimeout, strutil.WithPrefixOrDefault(prefix, "leave_timeout"), 10*time.Second, "")
+}
+
+type Service struct {
+	services.NamedService
+	cfg        Config
+	logger     log.Logger
+	discoverer cloud.Discoverer
+	memberlist *memberlist.Memberlist
+}
+
+func NewService(cfg Config, logger log.Logger, discoverer cloud.Discoverer, eventDelegate EventDelegate, service string, httpPort int) (*Service, error) {
 	hostname, err := os.Hostname()
 	if err != nil {
 		return nil, fmt.Errorf("failed to read hostname: %w", err)
@@ -46,7 +67,7 @@ func NewService(cfg Config, logger log.Logger, eventDelegate EventDelegate, serv
 		NamedService: nil,
 		cfg:          cfg,
 		logger:       logger,
-		dnsProvider:  dns.NewProvider(logger.Simple(), nil, dns.GolangResolverType),
+		discoverer:   discoverer,
 		memberlist:   list,
 	}
 
@@ -55,8 +76,8 @@ func NewService(cfg Config, logger log.Logger, eventDelegate EventDelegate, serv
 	return s, nil
 }
 
-func (s *Service) Members() ([]*cloud.Instance, error) {
-	var result []*cloud.Instance
+func (s *Service) Members(_ context.Context) ([]domain.Instance, error) {
+	var result []domain.Instance
 	for _, memberNode := range s.memberlist.Members() {
 		instance, err := nodeToInstance(memberNode)
 		if err != nil {
@@ -84,7 +105,7 @@ func (s *Service) run(ctx context.Context) error {
 	}
 
 	var tickerChan <-chan time.Time
-	if s.cfg.RejoinInterval > 0 && len(s.cfg.JoinMembers) > 0 {
+	if s.cfg.RejoinInterval > 0 && len(s.cfg.JoinAddresses) > 0 {
 		t := time.NewTicker(s.cfg.RejoinInterval)
 		defer t.Stop()
 
@@ -94,9 +115,13 @@ func (s *Service) run(ctx context.Context) error {
 	for {
 		select {
 		case <-tickerChan:
-			members := s.discoverMembers(ctx, s.cfg.JoinMembers)
+			//addrs, err := s.discoverMembers(ctx, s.cfg.JoinAddresses)
+			//if err != nil {
+			//	s.logger.Warn("failed to discover members: %w", err)
+			//	continue
+			//}
 
-			reached, err := s.memberlist.Join(members)
+			reached, err := s.memberlist.Join(s.cfg.JoinAddresses)
 			if err == nil {
 				s.logger.Info("re-joined memberlist cluster", "reached_nodes", reached)
 			} else {
@@ -130,13 +155,13 @@ func (s *Service) stop(err error) error {
 }
 
 func (s *Service) joinMembersOnStartup(ctx context.Context) bool {
-	if len(s.cfg.JoinMembers) == 0 {
+	if len(s.cfg.JoinAddresses) == 0 {
 		return true
 	}
 
 	startTime := time.Now()
 
-	s.logger.Info("joining memberlist cluster", "join_members", strings.Join(s.cfg.JoinMembers, ","))
+	s.logger.Info("joining memberlist cluster", "join_addresses", strings.Join(s.cfg.JoinAddresses, ","))
 
 	cfg := backoff.Config{
 		MinBackoff: s.cfg.MinJoinBackoff,
@@ -150,10 +175,14 @@ func (s *Service) joinMembersOnStartup(ctx context.Context) bool {
 	for boff.Ongoing() {
 		// We rejoin all nodes, including those that were joined during "fast-join".
 		// This is harmless and simpler.
-		nodes := s.discoverMembers(ctx, s.cfg.JoinMembers)
+		//nodes, err := s.discoverMembers(ctx, s.cfg.JoinAddresses)
+		//if err != nil {
+		//	s.logger.Warn("failed to discover members", "err", err)
+		//	continue
+		//}
 
-		if len(nodes) > 0 {
-			reached, err := s.memberlist.Join(nodes) // err is only returned if reached==0.
+		if len(s.cfg.JoinAddresses) > 0 {
+			reached, err := s.memberlist.Join(s.cfg.JoinAddresses) // err is only returned if reached==0.
 			if err == nil {
 				s.logger.Info("joining memberlist cluster succeeded", "reached_nodes", reached, "elapsed_time", time.Since(startTime))
 
@@ -174,27 +203,24 @@ func (s *Service) joinMembersOnStartup(ctx context.Context) bool {
 	return false
 }
 
-func (s *Service) discoverMembers(ctx context.Context, members []string) []string {
-	if len(members) == 0 {
-		return nil
-	}
-
-	var result, resolve []string
-	for _, member := range members {
-		if strings.Contains(member, "+") {
-			resolve = append(resolve, member)
-		} else {
-			// No DNS SRV record to lookup, just append member
-			result = append(result, member)
-		}
-	}
-
-	err := s.dnsProvider.Resolve(ctx, resolve)
-	if err != nil {
-		s.logger.Warn("failed to resolve members", "addrs", strings.Join(resolve, ","), "err", err)
-	}
-
-	result = append(result, s.dnsProvider.Addresses()...)
-
-	return result
-}
+//
+//func (s *Service) discoverMembers(ctx context.Context, addrs []string) ([]string, error) {
+//	if len(addrs) == 0 {
+//		return nil, nil
+//	}
+//
+//	instances, err := s.discoverer.Discover(ctx, addrs)
+//	if err != nil {
+//		return nil, fmt.Errorf("failed to discover: %w", err)
+//	}
+//
+//	result := make([]string, 0, len(instances))
+//	for _, instance := range instances {
+//		addr := net.JoinHostPort(instance.Host, strconv.Itoa(instance.GossipPort))
+//		result = append(result, addr)
+//	}
+//
+//	s.logger.Info("discoverMembers", "result", result)
+//
+//	return result, nil
+//}

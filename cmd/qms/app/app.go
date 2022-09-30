@@ -10,15 +10,19 @@ import (
 	"github.com/grafana/dskit/services"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/thanos-io/thanos/pkg/discovery/dns"
 	"go.opentelemetry.io/otel/trace"
 
-	"github.com/Blinkuu/qms/internal/core/domain/cloud"
+	"github.com/Blinkuu/qms/internal/core/domain"
 	"github.com/Blinkuu/qms/internal/core/services/alloc"
 	"github.com/Blinkuu/qms/internal/core/services/memberlist"
 	"github.com/Blinkuu/qms/internal/core/services/ping"
+	"github.com/Blinkuu/qms/internal/core/services/proxy"
 	"github.com/Blinkuu/qms/internal/core/services/rate"
 	"github.com/Blinkuu/qms/internal/core/services/server"
 	"github.com/Blinkuu/qms/internal/handlers"
+	"github.com/Blinkuu/qms/pkg/cloud"
+	"github.com/Blinkuu/qms/pkg/cloud/native"
 	"github.com/Blinkuu/qms/pkg/log"
 )
 
@@ -33,12 +37,14 @@ type App struct {
 	logger                  log.Logger
 	reg                     prometheus.Registerer
 	tp                      trace.TracerProvider
+	discoverer              cloud.Discoverer
 	modulesManager          *modules.Manager
 	servicesManager         *services.Manager
 	serviceNamesAndServices map[string]services.Service
 	server                  *server.Service
 	ping                    *ping.Service
 	memberlist              *memberlist.Service
+	proxy                   *proxy.Service
 	alloc                   *alloc.Service
 	rate                    *rate.Service
 }
@@ -50,12 +56,14 @@ func New(cfg Config, clock clock.Clock, logger log.Logger, reg prometheus.Regist
 		logger:         logger,
 		reg:            reg,
 		tp:             tp,
+		discoverer:     native.NewDiscoverer(logger, dns.NewProvider(logger.Simple(), reg, dns.GolangResolverType)),
 		modulesManager: modules.NewManager(logger.Simple()),
 	}
 
 	a.modulesManager.RegisterModule(server.ServiceName, a.initServer, modules.UserInvisibleModule)
 	a.modulesManager.RegisterModule(ping.ServiceName, a.initPing, modules.UserInvisibleModule)
 	a.modulesManager.RegisterModule(memberlist.ServiceName, a.initMemberlist, modules.UserInvisibleModule)
+	a.modulesManager.RegisterModule(proxy.ServiceName, a.initProxy)
 	a.modulesManager.RegisterModule(alloc.ServiceName, a.initAlloc)
 	a.modulesManager.RegisterModule(rate.ServiceName, a.initRate)
 	a.modulesManager.RegisterModule(Core, nil)
@@ -66,9 +74,10 @@ func New(cfg Config, clock clock.Clock, logger log.Logger, reg prometheus.Regist
 		ping.ServiceName:       {server.ServiceName},
 		memberlist.ServiceName: {server.ServiceName},
 		Core:                   {server.ServiceName, ping.ServiceName, memberlist.ServiceName},
+		proxy.ServiceName:      {Core},
 		alloc.ServiceName:      {Core},
 		rate.ServiceName:       {Core},
-		SingleBinary:           {Core, alloc.ServiceName, rate.ServiceName},
+		SingleBinary:           {Core, proxy.ServiceName, alloc.ServiceName, rate.ServiceName},
 	}
 
 	for mod, targets := range deps {
@@ -89,25 +98,6 @@ func (a *App) Run(ctx context.Context) error {
 	a.serviceNamesAndServices, err = a.modulesManager.InitModuleServices(a.cfg.Target)
 	if err != nil {
 		return fmt.Errorf("failed to init module services: %w", err)
-	}
-
-	pingHandler := handlers.NewPingHTTPHandler(a.ping)
-	a.server.HTTP.Handle("/ping", pingHandler.Ping())
-
-	memberlistHandler := handlers.NewMemberlistHTTPHandler(a.memberlist)
-	a.server.HTTP.Handle("/memberlist", memberlistHandler.Memberlist()).Methods(http.MethodGet)
-
-	a.server.HTTP.Handle("/metrics", promhttp.Handler())
-
-	{
-		v1ApiRouter := a.server.HTTP.PathPrefix("/api/v1").Subrouter()
-
-		rateHandler := handlers.NewRateHTTPHandler(a.rate)
-		v1ApiRouter.HandleFunc("/allow", rateHandler.Allow()).Methods(http.MethodPost)
-
-		allocHandler := handlers.NewAllocHTTPHandler(a.alloc)
-		v1ApiRouter.HandleFunc("/alloc", allocHandler.Alloc()).Methods(http.MethodPost)
-		v1ApiRouter.HandleFunc("/free", allocHandler.Free()).Methods(http.MethodPost)
 	}
 
 	svcs := make([]services.Service, 0, len(a.serviceNamesAndServices))
@@ -141,9 +131,39 @@ func (a *App) Run(ctx context.Context) error {
 	}
 	a.servicesManager.AddListener(services.NewManagerListener(healthy, stopped, failed))
 
-	err = a.servicesManager.StartAsync(ctx)
-	if err != nil {
+	if err := a.servicesManager.StartAsync(ctx); err != nil {
 		return fmt.Errorf("failed to start services: %w", err)
+	}
+
+	if err := a.servicesManager.AwaitHealthy(ctx); err != nil {
+		return fmt.Errorf("failed to await healthy: %w", err)
+	}
+
+	pingHandler := handlers.NewPingHTTPHandler(a.ping)
+	a.server.HTTP.Handle("/ping", pingHandler.Ping())
+
+	memberlistHandler := handlers.NewMemberlistHTTPHandler(a.memberlist)
+	a.server.HTTP.Handle("/memberlist", memberlistHandler.Memberlist()).Methods(http.MethodGet)
+
+	a.server.HTTP.Handle("/metrics", promhttp.Handler())
+
+	{
+		v1ApiRouter := a.server.HTTP.PathPrefix("/api/v1").Subrouter()
+
+		proxyHandler := handlers.NewProxyHTTPHandler(a.proxy)
+		v1ApiRouter.Handle("/allow", proxyHandler.Allow()).Methods(http.MethodPost)
+		v1ApiRouter.Handle("/alloc", proxyHandler.Alloc()).Methods(http.MethodPost)
+		v1ApiRouter.Handle("/free", proxyHandler.Free()).Methods(http.MethodPost)
+
+		{
+			v1InternalApiRouter := v1ApiRouter.PathPrefix("/internal").Subrouter()
+			rateHandler := handlers.NewRateHTTPHandler(a.rate)
+			v1InternalApiRouter.Handle("/allow", rateHandler.Allow()).Methods(http.MethodPost)
+
+			allocHandler := handlers.NewAllocHTTPHandler(a.alloc)
+			v1InternalApiRouter.Handle("/alloc", allocHandler.Alloc()).Methods(http.MethodPost)
+			v1InternalApiRouter.Handle("/free", allocHandler.Free()).Methods(http.MethodPost)
+		}
 	}
 
 	err = a.servicesManager.AwaitStopped(context.Background())
@@ -185,15 +205,15 @@ type loggingEventDelegate struct {
 	logger log.Logger
 }
 
-func (l loggingEventDelegate) NotifyJoin(instance *cloud.Instance) {
+func (l loggingEventDelegate) NotifyJoin(instance domain.Instance) {
 	l.logger.Info("NotifyJoin()", "instance", instance)
 }
 
-func (l loggingEventDelegate) NotifyLeave(instance *cloud.Instance) {
+func (l loggingEventDelegate) NotifyLeave(instance domain.Instance) {
 	l.logger.Info("NotifyLeave()", "instance", instance)
 }
 
-func (l loggingEventDelegate) NotifyUpdate(instance *cloud.Instance) {
+func (l loggingEventDelegate) NotifyUpdate(instance domain.Instance) {
 	l.logger.Info("NotifyUpdate()", "instance", instance)
 }
 
@@ -203,6 +223,7 @@ func (a *App) initMemberlist() (services.Service, error) {
 	a.memberlist, err = memberlist.NewService(
 		a.cfg.MemberlistConfig,
 		a.logger,
+		a.discoverer,
 		eventDelegate,
 		a.cfg.Target,
 		a.cfg.ServerConfig.HTTPPort,
@@ -213,6 +234,15 @@ func (a *App) initMemberlist() (services.Service, error) {
 func (a *App) initPing() (services.Service, error) {
 	a.ping = ping.NewService(a.logger)
 	return a.ping, nil
+}
+
+func (a *App) initProxy() (services.Service, error) {
+	memberlistClient := memberlist.NewClient(a.logger)
+	rateClient := rate.NewClient(a.logger)
+	allocClient := alloc.NewClient(a.logger)
+	var err error
+	a.proxy, err = proxy.NewService(a.cfg.ProxyConfig, a.logger, a.discoverer, memberlistClient, rateClient, allocClient)
+	return a.proxy, err
 }
 
 func (a *App) initAlloc() (services.Service, error) {

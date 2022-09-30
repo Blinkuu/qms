@@ -41,7 +41,7 @@ func NewZapLogger(name, lvl string, outputPaths []string) (*ZapLogger, error) {
 			CallerKey:      "caller",
 			FunctionKey:    zapcore.OmitKey,
 			MessageKey:     "msg",
-			StacktraceKey:  "stacktrace",
+			StacktraceKey:  "",
 			LineEnding:     zapcore.DefaultLineEnding,
 			EncodeLevel:    zapcore.LowercaseLevelEncoder,
 			EncodeTime:     zapcore.RFC3339NanoTimeEncoder,

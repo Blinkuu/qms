@@ -1,4 +1,4 @@
-package cloud
+package domain
 
 type Instance struct {
 	Service    string `json:"service"`
@@ -7,8 +7,8 @@ type Instance struct {
 	GossipPort int    `json:"gossip_port"`
 }
 
-func NewInstance(service, host string, httpPort, gossipPort int) *Instance {
-	return &Instance{
+func NewInstance(service, host string, httpPort, gossipPort int) Instance {
+	return Instance{
 		Service:    service,
 		Host:       host,
 		HTTPPort:   httpPort,

@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/Blinkuu/qms/internal/core/ports"
+	"github.com/Blinkuu/qms/pkg/dto"
 )
 
 type PingHTTPHandler struct {
@@ -19,9 +20,15 @@ func NewPingHTTPHandler(service ports.PingService) *PingHTTPHandler {
 
 func (h *PingHTTPHandler) Ping() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		result := h.service.Ping(r.Context())
+		msg := h.service.Ping(r.Context())
 
 		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(response{Status: StatusOK, Msg: MsgOK, Result: result})
+		_ = json.NewEncoder(w).Encode(
+			dto.NewOKResponseBody(
+				dto.PingResponseBody{
+					Msg: msg,
+				},
+			),
+		)
 	}
 }

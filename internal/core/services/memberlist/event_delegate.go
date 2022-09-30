@@ -3,7 +3,7 @@ package memberlist
 import (
 	"github.com/hashicorp/memberlist"
 
-	"github.com/Blinkuu/qms/internal/core/domain/cloud"
+	"github.com/Blinkuu/qms/internal/core/domain"
 )
 
 // EventDelegate is a simpler delegate that is used only to receive
@@ -12,14 +12,14 @@ import (
 // This allows you to reason about ordering.
 type EventDelegate interface {
 	// NotifyJoin is invoked when an instance is detected to have joined.
-	NotifyJoin(*cloud.Instance)
+	NotifyJoin(domain.Instance)
 
 	// NotifyLeave is invoked when an instance is detected to have left.
-	NotifyLeave(*cloud.Instance)
+	NotifyLeave(domain.Instance)
 
 	// NotifyUpdate is invoked when an instance is detected to have
 	// updated, usually involving the metadata.
-	NotifyUpdate(*cloud.Instance)
+	NotifyUpdate(domain.Instance)
 }
 
 type eventDelegateAdapter struct {

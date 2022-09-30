@@ -5,9 +5,14 @@ server:
   http_port: 6789
 
 memberlist:
-  join_members:
+  join_addresses:
     - 127.0.0.1:7946
-    -
+
+proxy:
+  alloc_addresses:
+    - 127.0.0.1:6789
+  rate_addresses:
+    - 127.0.0.1:6789
 
 alloc:
   backend: local

@@ -1,11 +1,11 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: qms-rate
+  name: qms-proxy
 spec:
   clusterIP: None
   selector:
-    app: qms-rate
+    app: qms-proxy
   ports:
     - name: http
       protocol: TCP
