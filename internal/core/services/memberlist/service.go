@@ -2,6 +2,7 @@ package memberlist
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -71,6 +72,14 @@ func NewService(cfg Config, logger log.Logger, discoverer cloud.Discoverer, even
 		memberlist:   list,
 	}
 
+	// TODO: Consider starting CORE services before the rest and AwaitRunning!!!
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	ok := s.joinMembersOnStartup(ctx)
+	if !ok {
+		return nil, errors.New("failed to join memberlist on startup")
+	}
+
 	s.NamedService = services.NewBasicService(s.start, s.run, s.stop).WithName(ServiceName)
 
 	return s, nil
@@ -98,11 +107,6 @@ func (s *Service) start(_ context.Context) error {
 
 func (s *Service) run(ctx context.Context) error {
 	s.logger.Info("running memberlist service")
-
-	ok := s.joinMembersOnStartup(ctx)
-	if !ok {
-		s.logger.Warn("failed to join members on startup")
-	}
 
 	var tickerChan <-chan time.Time
 	if s.cfg.RejoinInterval > 0 && len(s.cfg.JoinAddresses) > 0 {
@@ -169,18 +173,10 @@ func (s *Service) joinMembersOnStartup(ctx context.Context) bool {
 		MaxRetries: s.cfg.MaxJoinRetries,
 	}
 
-	boff := backoff.New(ctx, cfg)
+	bo := backoff.New(ctx, cfg)
 	var lastErr error
 
-	for boff.Ongoing() {
-		// We rejoin all nodes, including those that were joined during "fast-join".
-		// This is harmless and simpler.
-		//nodes, err := s.discoverMembers(ctx, s.cfg.JoinAddresses)
-		//if err != nil {
-		//	s.logger.Warn("failed to discover members", "err", err)
-		//	continue
-		//}
-
+	for bo.Ongoing() {
 		if len(s.cfg.JoinAddresses) > 0 {
 			reached, err := s.memberlist.Join(s.cfg.JoinAddresses) // err is only returned if reached==0.
 			if err == nil {
@@ -189,38 +185,16 @@ func (s *Service) joinMembersOnStartup(ctx context.Context) bool {
 				return true
 			}
 
-			s.logger.Warn("joining memberlist cluster: failed to reach any nodes", "retries", boff.NumRetries(), "err", err)
+			s.logger.Warn("joining memberlist cluster: failed to reach any nodes", "retries", bo.NumRetries(), "err", err)
 			lastErr = err
 		} else {
-			s.logger.Warn("joining memberlist cluster: found no nodes to join", "retries", boff.NumRetries())
+			s.logger.Warn("joining memberlist cluster: found no nodes to join", "retries", bo.NumRetries())
 		}
 
-		boff.Wait()
+		bo.Wait()
 	}
 
 	s.logger.Error("joining memberlist cluster failed", "last_error", lastErr, "elapsed_time", time.Since(startTime))
 
 	return false
 }
-
-//
-//func (s *Service) discoverMembers(ctx context.Context, addrs []string) ([]string, error) {
-//	if len(addrs) == 0 {
-//		return nil, nil
-//	}
-//
-//	instances, err := s.discoverer.Discover(ctx, addrs)
-//	if err != nil {
-//		return nil, fmt.Errorf("failed to discover: %w", err)
-//	}
-//
-//	result := make([]string, 0, len(instances))
-//	for _, instance := range instances {
-//		addr := net.JoinHostPort(instance.Host, strconv.Itoa(instance.GossipPort))
-//		result = append(result, addr)
-//	}
-//
-//	s.logger.Info("discoverMembers", "result", result)
-//
-//	return result, nil
-//}

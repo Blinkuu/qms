@@ -22,7 +22,7 @@ func NewStorage() *Storage {
 	}
 }
 
-func (s *Storage) Alloc(ctx context.Context, namespace, resource string, tokens int64) (remainingTokens int64, ok bool, err error) {
+func (s *Storage) Alloc(ctx context.Context, namespace, resource string, tokens int64) (int64, bool, error) {
 	id := strings.Join([]string{namespace, resource}, "_")
 
 	s.bucketsMu.RLock()
@@ -33,15 +33,15 @@ func (s *Storage) Alloc(ctx context.Context, namespace, resource string, tokens 
 		return 0, false, fmt.Errorf("st for %s not found", id)
 	}
 
-	waitTime, ok, err := bucket.Alloc(ctx, tokens)
+	remainingTokens, ok, err := bucket.Alloc(ctx, tokens)
 	if err != nil {
 		return 0, false, fmt.Errorf("failed to alloc: %w", err)
 	}
 
-	return waitTime, ok, nil
+	return remainingTokens, ok, nil
 }
 
-func (s *Storage) Free(ctx context.Context, namespace, resource string, tokens int64) (remainingTokens int64, ok bool, err error) {
+func (s *Storage) Free(ctx context.Context, namespace, resource string, tokens int64) (int64, bool, error) {
 	id := strings.Join([]string{namespace, resource}, "_")
 
 	s.bucketsMu.RLock()
@@ -52,15 +52,15 @@ func (s *Storage) Free(ctx context.Context, namespace, resource string, tokens i
 		return 0, false, fmt.Errorf("st for %s not found", id)
 	}
 
-	waitTime, ok, err := bucket.Free(ctx, tokens)
+	remainingTokens, ok, err := bucket.Free(ctx, tokens)
 	if err != nil {
 		return 0, false, fmt.Errorf("failed to free: %w", err)
 	}
 
-	return waitTime, ok, nil
+	return remainingTokens, ok, nil
 }
 
-func (s *Storage) RegisterQuota(namespace, resource string, cfg quota.Config) error {
+func (s *Storage) RegisterQuota(_ context.Context, namespace, resource string, cfg quota.Config) error {
 	s.bucketsMu.Lock()
 	defer s.bucketsMu.Unlock()
 
@@ -72,5 +72,9 @@ func (s *Storage) RegisterQuota(namespace, resource string, cfg quota.Config) er
 
 	s.buckets[id] = NewCappedBucket(cfg.Capacity)
 
+	return nil
+}
+
+func (s *Storage) Shutdown(_ context.Context) error {
 	return nil
 }

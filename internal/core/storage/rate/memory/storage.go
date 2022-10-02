@@ -47,7 +47,7 @@ func (s *Storage) Allow(ctx context.Context, namespace, resource string, tokens 
 	return waitTime, ok, nil
 }
 
-func (s *Storage) RegisterQuota(namespace, resource string, cfg quota.Config) error {
+func (s *Storage) RegisterQuota(_ context.Context, namespace, resource string, cfg quota.Config) error {
 	s.bucketsMu.Lock()
 	defer s.bucketsMu.Unlock()
 
@@ -70,4 +70,8 @@ func (s *Storage) RegisterQuota(namespace, resource string, cfg quota.Config) er
 	default:
 		return fmt.Errorf("%s algorithm is not supported", cfg.Algorithm)
 	}
+}
+
+func (s *Storage) Shutdown(_ context.Context) error {
+	return nil
 }

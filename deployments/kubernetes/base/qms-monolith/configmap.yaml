@@ -16,14 +16,18 @@ data:
     
     proxy:
       rate_addresses:
-        - dnssrv+qms.default.svc.cluster.local
+        - dnssrv+qms.default.svc.cluster.local]
+      alloc_lb_strategy: round-robin
       alloc_addresses:
         - dnssrv+qms.default.svc.cluster.local
     
     alloc:
-      backend: local
-      local:
-        dir: /tmp/qms/data/alloc
+      storage:
+        backend: raft
+        raft:
+          dir: /qms/data/raft/
+          host_from_hostname: true
+          replica_id_override: ${REPLICA_ID_OVERRIDE}
       quotas:
         - namespace: namespace1
           resource: resource1
@@ -31,7 +35,8 @@ data:
             capacity: 10
 
     rate:
-      backend: memory
+      storage:
+        backend: memory
       quotas:
         - namespace: namespace1
           resource: resource1

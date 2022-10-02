@@ -17,5 +17,6 @@ data:
     proxy:
       rate_addresses:
         - dnssrv+qms-rate.default.svc.cluster.local
+      alloc_lb_strategy: round-robin
       alloc_addresses:
         - dnssrv+qms-alloc.default.svc.cluster.local

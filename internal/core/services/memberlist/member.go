@@ -62,5 +62,5 @@ func nodeToInstance(node *memberlist.Node) (domain.Instance, error) {
 		return domain.Instance{}, fmt.Errorf("failed to split member name: memberName=%s", node.Name)
 	}
 
-	return domain.NewInstance(member.Service, node.Addr.String(), member.HTTPPort, member.GossipPort), nil
+	return domain.NewInstance(member.Service, member.Hostname, node.Addr.String(), member.HTTPPort, member.GossipPort), nil
 }

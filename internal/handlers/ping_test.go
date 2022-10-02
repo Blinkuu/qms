@@ -8,12 +8,14 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/grafana/dskit/services"
 	"github.com/stretchr/testify/require"
 
 	"github.com/Blinkuu/qms/pkg/dto"
 )
 
 type mockPingService struct {
+	services.NamedService
 }
 
 func (m mockPingService) Ping(_ context.Context) string {

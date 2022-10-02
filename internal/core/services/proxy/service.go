@@ -22,6 +22,8 @@ const (
 	ServiceName = "proxy"
 )
 
+type allocServiceClientFunc func(context.Context, []string, string, string, int64) (int64, bool, error)
+
 type Service struct {
 	services.NamedService
 	cfg              Config
@@ -29,15 +31,15 @@ type Service struct {
 	discoverer       cloud.Discoverer
 	memberlistClient ports.MemberlistServiceClient
 
-	rateClient     ports.RateServiceClient
-	rateMembers    []domain.Instance
-	rateHashRing   *hashring.HashRing
-	rateHashRingMu *sync.RWMutex
+	rateClient   ports.RateServiceClient
+	rateMembers  []domain.Instance
+	rateHashRing *hashring.HashRing
+	rateMu       *sync.RWMutex
 
-	allocClient     ports.AllocServiceClient
-	allocMembers    []domain.Instance
-	allocHashRing   *hashring.HashRing
-	allocHashRingMu *sync.RWMutex
+	allocClient   ports.AllocServiceClient
+	allocMembers  []domain.Instance
+	allocHashRing *hashring.HashRing
+	allocMu       *sync.RWMutex
 }
 
 func NewService(cfg Config, logger log.Logger, discoverer cloud.Discoverer, memberlistClient ports.MemberlistServiceClient, rateClient ports.RateServiceClient, allocClient ports.AllocServiceClient) (*Service, error) {
@@ -50,15 +52,12 @@ func NewService(cfg Config, logger log.Logger, discoverer cloud.Discoverer, memb
 		rateClient:       rateClient,
 		rateMembers:      nil,
 		rateHashRing:     hashring.New(nil),
-		rateHashRingMu:   &sync.RWMutex{},
+		rateMu:           &sync.RWMutex{},
 		allocClient:      allocClient,
 		allocMembers:     nil,
 		allocHashRing:    hashring.New(nil),
-		allocHashRingMu:  &sync.RWMutex{},
+		allocMu:          &sync.RWMutex{},
 	}
-
-	// TODO: Hash ring should be implemented using static node IDs
-	// TODO: Implement hash ring service
 
 	s.NamedService = services.NewBasicService(s.start, s.run, s.stop).WithName(ServiceName)
 
@@ -66,8 +65,8 @@ func NewService(cfg Config, logger log.Logger, discoverer cloud.Discoverer, memb
 }
 
 func (s *Service) Allow(ctx context.Context, namespace, resource string, tokens int64) (time.Duration, bool, error) {
-	s.rateHashRingMu.RLock()
-	defer s.rateHashRingMu.RUnlock()
+	s.rateMu.RLock()
+	defer s.rateMu.RUnlock()
 
 	id := strings.Join([]string{namespace, resource}, "_")
 	addr, ok := s.rateHashRing.GetNode(id)
@@ -79,29 +78,52 @@ func (s *Service) Allow(ctx context.Context, namespace, resource string, tokens 
 }
 
 func (s *Service) Alloc(ctx context.Context, namespace, resource string, tokens int64) (int64, bool, error) {
-	s.allocHashRingMu.RLock()
-	defer s.allocHashRingMu.RUnlock()
+	s.allocMu.RLock()
+	defer s.allocMu.RUnlock()
 
-	id := strings.Join([]string{namespace, resource}, "_")
-	addr, ok := s.allocHashRing.GetNode(id)
-	if !ok {
-		return 0, false, fmt.Errorf("failed to get address from ring: id=%s", id)
+	switch s.cfg.AllocLBStrategy {
+	case HashRingLBStrategy:
+		return s.hashRingLocked(ctx, namespace, resource, tokens, s.allocClient.Alloc)
+	case RoundRobinLBStrategy:
+		return s.roundRobinLocked(ctx, namespace, resource, tokens, s.allocClient.Alloc)
+	default:
 	}
 
-	return s.allocClient.Alloc(ctx, []string{addr}, namespace, resource, tokens)
+	return 0, false, fmt.Errorf("%s is not a supported alloc_lb_strategy", s.cfg.AllocLBStrategy)
 }
 
 func (s *Service) Free(ctx context.Context, namespace, resource string, tokens int64) (int64, bool, error) {
-	s.allocHashRingMu.RLock()
-	defer s.allocHashRingMu.RUnlock()
+	s.allocMu.RLock()
+	defer s.allocMu.RUnlock()
 
+	switch s.cfg.AllocLBStrategy {
+	case HashRingLBStrategy:
+		return s.hashRingLocked(ctx, namespace, resource, tokens, s.allocClient.Free)
+	case RoundRobinLBStrategy:
+		return s.roundRobinLocked(ctx, namespace, resource, tokens, s.allocClient.Free)
+	default:
+	}
+
+	return 0, false, fmt.Errorf("%s is not a supported alloc_lb_strategy", s.cfg.AllocLBStrategy)
+}
+
+func (s *Service) roundRobinLocked(ctx context.Context, namespace, resource string, tokens int64, f allocServiceClientFunc) (int64, bool, error) {
+	addrs := make([]string, 0, len(s.allocMembers))
+	for _, instance := range s.allocMembers {
+		addrs = append(addrs, net.JoinHostPort(instance.Host, strconv.Itoa(instance.HTTPPort)))
+	}
+
+	return f(ctx, addrs, namespace, resource, tokens)
+}
+
+func (s *Service) hashRingLocked(ctx context.Context, namespace, resource string, tokens int64, f allocServiceClientFunc) (int64, bool, error) {
 	id := strings.Join([]string{namespace, resource}, "_")
-	addr, ok := s.allocHashRing.GetNode(id)
+	addr, ok := s.rateHashRing.GetNode(id)
 	if !ok {
 		return 0, false, fmt.Errorf("failed to get address from ring: id=%s", id)
 	}
 
-	return s.allocClient.Free(ctx, []string{addr}, namespace, resource, tokens)
+	return f(ctx, []string{addr}, namespace, resource, tokens)
 }
 
 func (s *Service) start(_ context.Context) error {
@@ -141,14 +163,14 @@ func (s *Service) updateRings() {
 	if err != nil {
 		s.logger.Warn("failed to get rate members", "err", err)
 	} else {
-		s.updateRateHashRing(members)
+		s.updateRateMembersAndHashRing(members)
 	}
 
 	members, err = s.fetchMembers(s.cfg.AllocAddresses)
 	if err != nil {
 		s.logger.Warn("failed to get alloc members", "err", err)
 	} else {
-		s.updateAllocHashRing(members)
+		s.updateAllocMembersAndHashRing(members)
 	}
 }
 
@@ -174,9 +196,9 @@ func (s *Service) fetchMembers(discoverAddrs []string) ([]domain.Instance, error
 	return members, nil
 }
 
-func (s *Service) updateRateHashRing(newMembers []domain.Instance) {
-	s.rateHashRingMu.Lock()
-	defer s.rateHashRingMu.Unlock()
+func (s *Service) updateRateMembersAndHashRing(newMembers []domain.Instance) {
+	s.rateMu.Lock()
+	defer s.rateMu.Unlock()
 
 	oldMembers := s.rateMembers
 	diff := diffMembers(oldMembers, newMembers)
@@ -194,9 +216,9 @@ func (s *Service) updateRateHashRing(newMembers []domain.Instance) {
 	s.rateHashRing = hashRing
 }
 
-func (s *Service) updateAllocHashRing(newMembers []domain.Instance) {
-	s.allocHashRingMu.Lock()
-	defer s.allocHashRingMu.Unlock()
+func (s *Service) updateAllocMembersAndHashRing(newMembers []domain.Instance) {
+	s.allocMu.Lock()
+	defer s.allocMu.Unlock()
 
 	oldMembers := s.allocMembers
 	diff := diffMembers(oldMembers, newMembers)

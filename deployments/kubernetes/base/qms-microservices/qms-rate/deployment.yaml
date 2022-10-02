@@ -4,9 +4,6 @@ metadata:
   name: qms-rate
   labels:
     app: qms-rate
-  annotations:
-    prometheus.io/scrape: 'true'
-    prometheus.io/port: '6789'
 spec:
   replicas: 1
   selector:
@@ -16,10 +13,16 @@ spec:
     metadata:
       labels:
         app: qms-rate
+      annotations:
+        prometheus.io/scrape: 'true'
+        prometheus.io/port: '6789'
     spec:
       containers:
         - name: qms-rate
           image: qms:latest
+          args:
+            - "-config.file=/app/configs/config.yaml"
+            - "-config.expand-env=true"
           ports:
             - name: http
               protocol: TCP

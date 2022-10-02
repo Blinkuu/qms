@@ -25,9 +25,7 @@ type Service struct {
 }
 
 func NewService(cfg Config, clock clock.Clock, logger log.Logger) (*Service, error) {
-	logger = logger.With("service", ServiceName)
-
-	storage, err := storageFromConfig(cfg, clock)
+	storage, err := storageFromConfig(cfg, clock, logger)
 	if err != nil {
 		return nil, fmt.Errorf("failed create storage from config: %w", err)
 	}
@@ -70,10 +68,10 @@ func (s *Service) stop(err error) error {
 		s.logger.Error("rate service returned error from running state", "err", err)
 	}
 
-	return nil
+	return s.storage.Shutdown(context.TODO())
 }
 
-func storageFromConfig(cfg Config, clock clock.Clock) (rate.Storage, error) {
+func storageFromConfig(cfg Config, clock clock.Clock, logger log.Logger) (rate.Storage, error) {
 	var storage rate.Storage
 	switch cfg.Storage.Backend {
 	case alloc.Memory:
@@ -82,10 +80,12 @@ func storageFromConfig(cfg Config, clock clock.Clock) (rate.Storage, error) {
 		return nil, fmt.Errorf("%s backend is not supported", cfg.Storage.Backend)
 	}
 
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
 	for _, quota := range cfg.Quotas {
-		err := storage.RegisterQuota(quota.Namespace, quota.Resource, quota.Strategy)
+		err := storage.RegisterQuota(ctx, quota.Namespace, quota.Resource, quota.Strategy)
 		if err != nil {
-			return nil, fmt.Errorf("failed to register quota: %w", err)
+			logger.Warn("failed to register quota", "err", err)
 		}
 	}
 

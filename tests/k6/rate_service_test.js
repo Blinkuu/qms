@@ -1,10 +1,11 @@
 import {Counter} from "k6/metrics";
 import http from "k6/http";
 
-const hit_counter = new Counter("hit_counter");
+const requestTotalCounter = new Counter("request_total")
+const requestTotalFailureCounter = new Counter("request_total_failure")
 
 export default function () {
-    const url = "http://localhost:6789/api/v1/allow";
+    const url = `http://${__ENV.ADDR}/api/v1/allow`;
     const payload = JSON.stringify({
         namespace: "namespace1",
         resource: "resource1",
@@ -16,9 +17,10 @@ export default function () {
         },
     };
 
+    requestTotalCounter.add(1)
     const res = http.post(url, payload, params);
     if (res.status != 200) {
-        console.error("invalid status");
+        requestTotalFailureCounter.add(1)
         return;
     }
 

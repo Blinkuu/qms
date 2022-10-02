@@ -36,6 +36,7 @@ func NewService(cfg Config, clock clock.Clock, logger log.Logger, reg prometheus
 
 	router := mux.NewRouter()
 	router.Use(
+		gorillamux.TimeoutMiddleware(10*time.Second),
 		gorillamux.TraceMiddleware(tp, "gorillamux"),
 		gorillamux.MetricsMiddleware(clock, reg, "default", "qms", "gorillamux"),
 		gorillamux.LogMiddleware(logger, "gorillamux"),

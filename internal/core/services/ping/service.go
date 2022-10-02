@@ -18,8 +18,6 @@ type Service struct {
 }
 
 func NewService(logger log.Logger) *Service {
-	logger = logger.With("service", ServiceName)
-
 	s := &Service{
 		NamedService: nil,
 		logger:       logger,

@@ -21,8 +21,8 @@ type Config struct {
 }
 
 func (c *Config) RegisterFlagsWithPrefix(f *flag.FlagSet, prefix string) {
-	f.StringVar(&c.Backend, strutil.WithPrefixOrDefault(prefix, "backend"), "", "")
+	f.StringVar(&c.Backend, strutil.WithPrefixOrDefault(prefix, "backend"), Memory, "")
 
-	c.Local.RegisterFlagsWithPrefix(f, strutil.WithPrefixOrDefault(prefix, "local"))
-	c.Raft.RegisterFlagsWithPrefix(f, strutil.WithPrefixOrDefault(prefix, "raft"))
+	c.Local.RegisterFlagsWithPrefix(f, strutil.WithPrefixOrDefault(prefix, Local))
+	c.Raft.RegisterFlagsWithPrefix(f, strutil.WithPrefixOrDefault(prefix, Raft))
 }

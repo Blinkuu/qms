@@ -15,11 +15,14 @@ data:
         - qms-alloc.default.svc.cluster.local
 
     alloc:
-      backend: local
-      local:
-        dir: /tmp/qms/data/alloc
+      storage:
+        backend: raft
+        raft:
+          dir: /qms/data/raft/
+          host_from_hostname: true
+          replica_id_override: ${REPLICA_ID_OVERRIDE}
       quotas:
         - namespace: namespace1
           resource: resource1
           strategy:
-            capacity: 10
+            capacity: 100
