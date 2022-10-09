@@ -13,7 +13,7 @@ jobs:
         with:
           go-version: ${{ matrix.go-version }}
       - name: Run with coverage
-        run: go test -race -coverprofile coverage.out -covermode atomic ./...
+        run: make test
       - name: Upload coverage
         uses: codecov/codecov-action@v2
         with:

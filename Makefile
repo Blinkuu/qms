@@ -1,7 +1,7 @@
 GOARCH ?= $(shell go env GOARCH)
 GOOS ?= $(shell go env GOOS)
 
-GO_TEST_OPT?= -race -timeout 16m -count=1
+GO_TEST_OPT?= -timeout 16m -coverprofile coverage.out -covermode atomic -count=1
 GO_TEST=go test
 
 GO_BUILD=go build
