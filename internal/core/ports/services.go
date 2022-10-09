@@ -26,8 +26,8 @@ type RateService interface {
 
 type AllocService interface {
 	services.NamedService
-	Alloc(ctx context.Context, namespace, resource string, tokens int64) (remainingTokens int64, ok bool, err error)
-	Free(ctx context.Context, namespace, resource string, tokens int64) (remainingTokens int64, ok bool, err error)
+	Alloc(ctx context.Context, namespace, resource string, tokens, version int64) (remainingTokens, currentVersion int64, ok bool, err error)
+	Free(ctx context.Context, namespace, resource string, tokens, version int64) (remainingTokens, currentVersion int64, ok bool, err error)
 }
 
 type ProxyService interface {

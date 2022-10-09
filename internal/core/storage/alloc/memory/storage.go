@@ -22,7 +22,7 @@ func NewStorage() *Storage {
 	}
 }
 
-func (s *Storage) Alloc(ctx context.Context, namespace, resource string, tokens int64) (int64, bool, error) {
+func (s *Storage) Alloc(ctx context.Context, namespace, resource string, tokens, version int64) (int64, int64, bool, error) {
 	id := strings.Join([]string{namespace, resource}, "_")
 
 	s.bucketsMu.RLock()
@@ -30,18 +30,18 @@ func (s *Storage) Alloc(ctx context.Context, namespace, resource string, tokens 
 
 	bucket, found := s.buckets[id]
 	if !found {
-		return 0, false, fmt.Errorf("st for %s not found", id)
+		return 0, 0, false, fmt.Errorf("st for %s not found", id)
 	}
 
-	remainingTokens, ok, err := bucket.Alloc(ctx, tokens)
+	remainingTokens, currentVersion, ok, err := bucket.Alloc(ctx, tokens, version)
 	if err != nil {
-		return 0, false, fmt.Errorf("failed to alloc: %w", err)
+		return 0, 0, false, fmt.Errorf("failed to alloc: %w", err)
 	}
 
-	return remainingTokens, ok, nil
+	return remainingTokens, currentVersion, ok, nil
 }
 
-func (s *Storage) Free(ctx context.Context, namespace, resource string, tokens int64) (int64, bool, error) {
+func (s *Storage) Free(ctx context.Context, namespace, resource string, tokens, version int64) (int64, int64, bool, error) {
 	id := strings.Join([]string{namespace, resource}, "_")
 
 	s.bucketsMu.RLock()
@@ -49,15 +49,15 @@ func (s *Storage) Free(ctx context.Context, namespace, resource string, tokens i
 
 	bucket, found := s.buckets[id]
 	if !found {
-		return 0, false, fmt.Errorf("st for %s not found", id)
+		return 0, 0, false, fmt.Errorf("st for %s not found", id)
 	}
 
-	remainingTokens, ok, err := bucket.Free(ctx, tokens)
+	remainingTokens, currentVersion, ok, err := bucket.Free(ctx, tokens, version)
 	if err != nil {
-		return 0, false, fmt.Errorf("failed to free: %w", err)
+		return 0, 0, false, fmt.Errorf("failed to free: %w", err)
 	}
 
-	return remainingTokens, ok, nil
+	return remainingTokens, currentVersion, ok, nil
 }
 
 func (s *Storage) RegisterQuota(_ context.Context, namespace, resource string, cfg quota.Config) error {
@@ -70,7 +70,7 @@ func (s *Storage) RegisterQuota(_ context.Context, namespace, resource string, c
 		return errors.New("only a single strategy for a namespace-resource pair can be registered")
 	}
 
-	s.buckets[id] = NewCappedBucket(cfg.Capacity)
+	s.buckets[id] = NewCappedBucket(cfg.Capacity, 1)
 
 	return nil
 }

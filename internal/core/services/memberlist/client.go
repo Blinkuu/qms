@@ -73,17 +73,17 @@ func (c *Client) Members(ctx context.Context, addrs []string) ([]domain.Instance
 			continue
 		}
 
-		memberlistResponseBody := dto.ResponseBody[dto.MemberlistResponseBody]{}
-		if err := json.NewDecoder(res.Body).Decode(&memberlistResponseBody); err != nil {
+		resBody := dto.ResponseBody[dto.MemberlistResponseBody]{}
+		if err := json.NewDecoder(res.Body).Decode(&resBody); err != nil {
 			c.logger.Warn("failed to decode response body", "err", err)
 			continue
 		}
 
-		if memberlistResponseBody.Status != dto.StatusOK {
-			c.logger.Warn("invalid status code", "statusCode", memberlistResponseBody.Status)
+		if resBody.Status != dto.StatusOK {
+			return nil, fmt.Errorf("invalid status code: statusCode=%d", resBody.Status)
 		}
 
-		return memberlistResponseBody.Result.Members, nil
+		return resBody.Result.Members, nil
 	}
 
 	return nil, errors.New("all attempts failed")

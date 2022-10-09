@@ -28,6 +28,7 @@ import (
 
 	"github.com/Blinkuu/qms/internal/core/domain"
 	"github.com/Blinkuu/qms/internal/core/ports"
+	stor "github.com/Blinkuu/qms/internal/core/storage"
 	"github.com/Blinkuu/qms/internal/core/storage/alloc/quota"
 	"github.com/Blinkuu/qms/pkg/dto"
 	"github.com/Blinkuu/qms/pkg/log"
@@ -170,34 +171,48 @@ func (s *Storage) Run(ctx context.Context) error {
 	}
 }
 
-func (s *Storage) Alloc(ctx context.Context, namespace, resource string, tokens int64) (int64, bool, error) {
+func (s *Storage) Alloc(ctx context.Context, namespace, resource string, tokens, version int64) (int64, int64, bool, error) {
 	id := strings.Join([]string{namespace, resource}, "_")
 	shardID := shardIDFromString(id, s.cfg.Shards)
 
-	allocCmd := NewAllocCommand(namespace, resource, tokens)
+	allocCmd := NewAllocCommand(namespace, resource, tokens, version)
 	result, err := allocCmd.RaftInvoke(ctx, s.nh, shardID, s.sessions[shardID])
 	if err != nil {
-		return 0, false, fmt.Errorf("failed to raft invoke: %w", err)
+		return 0, 0, false, fmt.Errorf("failed to raft invoke: %w", err)
 	}
 
 	typedResult := result.(AllocCommandResult)
+	if typedResult.Err != "" {
+		if stor.IsInvalidVersionError(typedResult.Err) {
+			return 0, 0, false, stor.ErrInvalidVersion
+		}
 
-	return typedResult.RemainingTokens, typedResult.OK, nil
+		return 0, 0, false, errors.New(typedResult.Err)
+	}
+
+	return typedResult.RemainingTokens, typedResult.CurrentVersion, typedResult.OK, nil
 }
 
-func (s *Storage) Free(ctx context.Context, namespace, resource string, tokens int64) (int64, bool, error) {
+func (s *Storage) Free(ctx context.Context, namespace, resource string, tokens, version int64) (int64, int64, bool, error) {
 	id := strings.Join([]string{namespace, resource}, "_")
 	shardID := shardIDFromString(id, s.cfg.Shards)
 
-	freeCmd := NewFreeCommand(namespace, resource, tokens)
+	freeCmd := NewFreeCommand(namespace, resource, tokens, version)
 	result, err := freeCmd.RaftInvoke(ctx, s.nh, shardID, s.sessions[shardID])
 	if err != nil {
-		return 0, false, fmt.Errorf("failed to raft invoke: %w", err)
+		return 0, 0, false, fmt.Errorf("failed to raft invoke: %w", err)
 	}
 
 	typedResult := result.(FreeCommandResult)
+	if typedResult.Err != "" {
+		if stor.IsInvalidVersionError(typedResult.Err) {
+			return 0, 0, false, stor.ErrInvalidVersion
+		}
 
-	return typedResult.RemainingTokens, typedResult.OK, nil
+		return 0, 0, false, errors.New(typedResult.Err)
+	}
+
+	return typedResult.RemainingTokens, typedResult.CurrentVersion, typedResult.OK, nil
 }
 
 func (s *Storage) RegisterQuota(ctx context.Context, namespace, resource string, cfg quota.Config) error {
@@ -325,6 +340,7 @@ func (s *Storage) isLeader() bool {
 type item struct {
 	Allocated int64
 	Capacity  int64
+	Version   int64
 }
 
 type storage struct {
@@ -346,9 +362,9 @@ func newStorage(dir string, logger log.Logger) (*storage, error) {
 	}, nil
 }
 
-func (s *storage) alloc(namespace, resource string, tokens int64, entryIdx uint64) (int64, bool, error) {
+func (s *storage) alloc(namespace, resource string, tokens, version int64, entryIdx uint64) (int64, int64, bool, error) {
 	if s.db.IsClosed() {
-		return 0, false, errors.New("badger db is closed")
+		return 0, 0, false, errors.New("badger db is closed")
 	}
 
 	id := strings.Join([]string{namespace, resource}, "_")
@@ -358,33 +374,38 @@ func (s *storage) alloc(namespace, resource string, tokens int64, entryIdx uint6
 
 	it, err := get[item](txn, id)
 	if err != nil {
-		return 0, false, fmt.Errorf("failed to get: %w", err)
+		return 0, 0, false, fmt.Errorf("failed to get: %w", err)
+	}
+
+	if version != 0 && it.Version != version {
+		return 0, 0, false, stor.ErrInvalidVersion
 	}
 
 	newAllocated := it.Allocated + tokens
 	if newAllocated > it.Capacity {
-		return it.Capacity - it.Allocated, false, nil
+		return it.Capacity - it.Allocated, it.Version, false, nil
 	}
 
 	it.Allocated = newAllocated
+	it.Version += 1
 	if err := set[item](txn, id, it); err != nil {
-		return 0, false, fmt.Errorf("failed to set item: %w", err)
+		return 0, 0, false, fmt.Errorf("failed to set item: %w", err)
 	}
 
 	if err := set[uint64](txn, appliedEntryIndexKey, entryIdx); err != nil {
-		return 0, false, fmt.Errorf("failed to set entry index: %w", err)
+		return 0, 0, false, fmt.Errorf("failed to set entry index: %w", err)
 	}
 
 	if err := txn.Commit(); err != nil {
-		return 0, false, fmt.Errorf("failed to commit transaction: %w", err)
+		return 0, 0, false, fmt.Errorf("failed to commit transaction: %w", err)
 	}
 
-	return it.Capacity - it.Allocated, true, nil
+	return it.Capacity - it.Allocated, it.Version, true, nil
 }
 
-func (s *storage) free(namespace, resource string, tokens int64, entryIdx uint64) (int64, bool, error) {
+func (s *storage) free(namespace, resource string, tokens, version int64, entryIdx uint64) (int64, int64, bool, error) {
 	if s.db.IsClosed() {
-		return 0, false, errors.New("badger db is closed")
+		return 0, 0, false, errors.New("badger db is closed")
 	}
 
 	id := strings.Join([]string{namespace, resource}, "_")
@@ -394,29 +415,33 @@ func (s *storage) free(namespace, resource string, tokens int64, entryIdx uint64
 
 	it, err := get[item](txn, id)
 	if err != nil {
-		return 0, false, fmt.Errorf("failed to get: %w", err)
+		return 0, 0, false, fmt.Errorf("failed to get: %w", err)
+	}
+
+	if version != 0 && it.Version != version {
+		return 0, 0, false, stor.ErrInvalidVersion
 	}
 
 	newAllocated := it.Allocated - tokens
 	if newAllocated < 0 {
-		return it.Capacity - it.Allocated, false, nil
+		return it.Capacity - it.Allocated, it.Version, false, nil
 	}
 
 	it.Allocated = newAllocated
-
+	it.Version += 1
 	if err := set[item](txn, id, it); err != nil {
-		return 0, false, fmt.Errorf("failed to set item: %w", err)
+		return 0, 0, false, fmt.Errorf("failed to set item: %w", err)
 	}
 
 	if err := set[uint64](txn, appliedEntryIndexKey, entryIdx); err != nil {
-		return 0, false, fmt.Errorf("failed to set entry index: %w", err)
+		return 0, 0, false, fmt.Errorf("failed to set entry index: %w", err)
 	}
 
 	if err := txn.Commit(); err != nil {
-		return 0, false, fmt.Errorf("failed to commit transaction: %w", err)
+		return 0, 0, false, fmt.Errorf("failed to commit transaction: %w", err)
 	}
 
-	return it.Capacity - it.Allocated, true, nil
+	return it.Capacity - it.Allocated, it.Version, true, nil
 }
 
 func (s *storage) registerQuota(namespace, resource string, cfg quota.Config, entryIdx uint64) error {
@@ -434,7 +459,7 @@ func (s *storage) registerQuota(namespace, resource string, cfg quota.Config, en
 		return nil
 	}
 
-	if err := set[item](txn, id, item{Allocated: 0, Capacity: cfg.Capacity}); err != nil {
+	if err := set[item](txn, id, item{Allocated: 0, Capacity: cfg.Capacity, Version: 1}); err != nil {
 		return fmt.Errorf("failed to set item :%w", err)
 	}
 

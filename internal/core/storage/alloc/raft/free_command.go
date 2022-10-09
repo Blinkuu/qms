@@ -13,19 +13,23 @@ type FreeCommand struct {
 	Namespace string
 	Resource  string
 	Tokens    int64
+	Version   int64
 	SMResult  statemachine.Result
 }
 
 type FreeCommandResult struct {
 	RemainingTokens int64
+	CurrentVersion  int64
 	OK              bool
+	Err             string
 }
 
-func NewFreeCommand(namespace, resource string, tokens int64) *FreeCommand {
+func NewFreeCommand(namespace, resource string, tokens, version int64) *FreeCommand {
 	return &FreeCommand{
 		Namespace: namespace,
 		Resource:  resource,
 		Tokens:    tokens,
+		Version:   version,
 		SMResult:  statemachine.Result{},
 	}
 }
@@ -44,12 +48,13 @@ func (c *FreeCommand) RaftInvoke(ctx context.Context, nh *dragonboat.NodeHost, _
 }
 
 func (c *FreeCommand) LocalInvoke(storage *storage, entryIdx uint64) error {
-	remainingTokens, ok, err := storage.free(c.Namespace, c.Resource, c.Tokens, entryIdx)
+	remainingTokens, currentVersion, ok, err := storage.free(c.Namespace, c.Resource, c.Tokens, c.Version, entryIdx)
+	var errStr string
 	if err != nil {
-		return fmt.Errorf("failed to free: %w", err)
+		errStr = err.Error()
 	}
 
-	data := EncodeCommandResult(FreeCommandResult{RemainingTokens: remainingTokens, OK: ok})
+	data := EncodeCommandResult(FreeCommandResult{RemainingTokens: remainingTokens, CurrentVersion: currentVersion, OK: ok, Err: errStr})
 	c.SMResult = statemachine.Result{
 		Value: 1,
 		Data:  data,

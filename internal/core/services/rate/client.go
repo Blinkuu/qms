@@ -75,17 +75,17 @@ func (c *Client) Allow(ctx context.Context, addrs []string, namespace, resource 
 			continue
 		}
 
-		allowResponseBody := dto.ResponseBody[dto.AllowResponseBody]{}
-		if err := json.NewDecoder(res.Body).Decode(&allowResponseBody); err != nil {
+		resBody := dto.ResponseBody[dto.AllowResponseBody]{}
+		if err := json.NewDecoder(res.Body).Decode(&resBody); err != nil {
 			c.logger.Warn("failed to decode response body", "err", err)
 			continue
 		}
 
-		if allowResponseBody.Status != dto.StatusOK {
-			c.logger.Warn("invalid status code", "statusCode", allowResponseBody.Status)
+		if resBody.Status != dto.StatusOK {
+			return 0, false, fmt.Errorf("invalid status code: statusCode=%d", resBody.Status)
 		}
 
-		return time.Duration(allowResponseBody.Result.WaitTime), allowResponseBody.Result.OK, nil
+		return time.Duration(resBody.Result.WaitTime), resBody.Result.OK, nil
 	}
 
 	return 0, false, errors.New("all attempts failed")

@@ -20,14 +20,14 @@ func NewProxyHTTPHandler(service ports.ProxyService) *ProxyHTTPHandler {
 
 func (h *ProxyHTTPHandler) Allow() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var allowRequestBody dto.AllowRequestBody
-		err := json.NewDecoder(r.Body).Decode(&allowRequestBody)
+		var req dto.AllowRequestBody
+		err := json.NewDecoder(r.Body).Decode(&req)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 
-		waitTime, ok, err := h.service.Allow(r.Context(), allowRequestBody.Namespace, allowRequestBody.Resource, allowRequestBody.Tokens)
+		waitTime, ok, err := h.service.Allow(r.Context(), req.Namespace, req.Resource, req.Tokens)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -47,14 +47,14 @@ func (h *ProxyHTTPHandler) Allow() http.HandlerFunc {
 
 func (h *ProxyHTTPHandler) Alloc() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var allocRequestBody dto.AllocRequestBody
-		err := json.NewDecoder(r.Body).Decode(&allocRequestBody)
+		var req dto.AllocRequestBody
+		err := json.NewDecoder(r.Body).Decode(&req)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 
-		remainingTokens, ok, err := h.service.Alloc(r.Context(), allocRequestBody.Namespace, allocRequestBody.Resource, allocRequestBody.Tokens)
+		remainingTokens, currentVersion, ok, err := h.service.Alloc(r.Context(), req.Namespace, req.Resource, req.Tokens, req.Version)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -65,6 +65,7 @@ func (h *ProxyHTTPHandler) Alloc() http.HandlerFunc {
 			dto.NewOKResponseBody(
 				dto.AllocResponseBody{
 					RemainingTokens: remainingTokens,
+					CurrentVersion:  currentVersion,
 					OK:              ok,
 				},
 			),
@@ -74,14 +75,14 @@ func (h *ProxyHTTPHandler) Alloc() http.HandlerFunc {
 
 func (h *ProxyHTTPHandler) Free() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var freeRequestBody dto.FreeRequestBody
-		err := json.NewDecoder(r.Body).Decode(&freeRequestBody)
+		var req dto.FreeRequestBody
+		err := json.NewDecoder(r.Body).Decode(&req)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 
-		remainingTokens, ok, err := h.service.Free(r.Context(), freeRequestBody.Namespace, freeRequestBody.Resource, freeRequestBody.Tokens)
+		remainingTokens, currentVersion, ok, err := h.service.Free(r.Context(), req.Namespace, req.Resource, req.Tokens, req.Version)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -92,6 +93,7 @@ func (h *ProxyHTTPHandler) Free() http.HandlerFunc {
 			dto.NewOKResponseBody(
 				dto.FreeResponseBody{
 					RemainingTokens: remainingTokens,
+					CurrentVersion:  currentVersion,
 					OK:              ok,
 				},
 			),

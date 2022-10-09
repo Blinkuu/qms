@@ -248,7 +248,7 @@ func (a *App) initPing() (services.Service, error) {
 
 func (a *App) initProxy() (services.Service, error) {
 	memberlistClient := memberlist.NewClient(
-		a.logger.With("service", proxy.ServiceName, "component", rate.ClientName),
+		a.logger.With("service", proxy.ServiceName, "component", memberlist.ClientName),
 	)
 	rateClient := rate.NewClient(
 		a.logger.With("service", proxy.ServiceName, "component", rate.ClientName),

@@ -21,3 +21,11 @@ func NewOKResponseBody[T any](result T) ResponseBody[T] {
 		Result: result,
 	}
 }
+
+func NewResponseBody[T any](status int, msg string, result T) ResponseBody[T] {
+	return ResponseBody[T]{
+		Status: status,
+		Msg:    msg,
+		Result: result,
+	}
+}
