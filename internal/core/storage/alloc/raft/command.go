@@ -14,9 +14,10 @@ import (
 type CommandType byte
 
 const (
-	Alloc         CommandType = 1
-	Free          CommandType = 2
-	RegisterQuota CommandType = 3
+	View          CommandType = 1
+	Alloc         CommandType = 2
+	Free          CommandType = 3
+	RegisterQuota CommandType = 4
 )
 
 type Command interface {
@@ -42,6 +43,13 @@ func DecodeCommand(data []byte) (Command, error) {
 	decoder := gob.NewDecoder(buf)
 
 	switch CommandType(data[0]) {
+	case View:
+		cmd := &ViewCommand{}
+		if err := decoder.Decode(cmd); err != nil {
+			panic(fmt.Errorf("failed to decode view command: %w", err))
+		}
+
+		return cmd, nil
 	case Alloc:
 		cmd := &AllocCommand{}
 		if err := decoder.Decode(cmd); err != nil {
@@ -98,12 +106,12 @@ func syncWrite[T any](ctx context.Context, nh *dragonboat.NodeHost, session *cli
 	return DecodeCommandResult[T](result.Data), nil
 }
 
-// TODO: Implement View() for alloc service
-//func syncRead(ctx context.Context, nh *dragonboat.NodeHost, clusterId uint64, cmd Command) ([]byte, error) {
-//	result, err := nh.SyncRead(ctx, clusterId, EncodeCommand(cmd))
-//	if err != nil {
-//		return nil, fmt.Errorf("failed to sync read: %w", err)
-//	}
-//
-//	return result.([]byte), err
-//}
+func syncRead[T any](ctx context.Context, nh *dragonboat.NodeHost, shardID uint64, cmd Command) (T, error) {
+	result, err := nh.SyncRead(ctx, shardID, EncodeCommand(cmd))
+	if err != nil {
+		var zero T
+		return zero, fmt.Errorf("failed to sync read: %w", err)
+	}
+
+	return DecodeCommandResult[T](result.([]byte)), nil
+}

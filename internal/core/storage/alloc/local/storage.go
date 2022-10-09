@@ -41,6 +41,30 @@ func NewStorage(cfg Config, logger log.Logger) (*Storage, error) {
 	}, nil
 }
 
+func (s *Storage) View(_ context.Context, namespace, resource string) (int64, int64, int64, error) {
+	if s.db.IsClosed() {
+		return 0, 0, 0, errors.New("badger db is closed")
+	}
+
+	id := strings.Join([]string{namespace, resource}, "_")
+
+	txn := s.db.NewTransaction(true)
+	defer txn.Discard()
+
+	it, err := get[item](txn, id)
+	if err != nil {
+		switch {
+		case errors.Is(err, badger.ErrKeyNotFound):
+			return 0, 0, 0, storage.ErrNotFound
+		default:
+		}
+
+		return 0, 0, 0, fmt.Errorf("failed to get: %w", err)
+	}
+
+	return it.Allocated, it.Capacity, it.Version, nil
+}
+
 func (s *Storage) Alloc(_ context.Context, namespace, resource string, tokens, version int64) (int64, int64, bool, error) {
 	if s.db.IsClosed() {
 		return 0, 0, false, errors.New("badger db is closed")
@@ -53,6 +77,12 @@ func (s *Storage) Alloc(_ context.Context, namespace, resource string, tokens, v
 
 	it, err := get[item](txn, id)
 	if err != nil {
+		switch {
+		case errors.Is(err, badger.ErrKeyNotFound):
+			return 0, 0, false, storage.ErrNotFound
+		default:
+		}
+
 		return 0, 0, false, fmt.Errorf("failed to get: %w", err)
 	}
 
@@ -90,6 +120,12 @@ func (s *Storage) Free(_ context.Context, namespace, resource string, tokens, ve
 
 	it, err := get[item](txn, id)
 	if err != nil {
+		switch {
+		case errors.Is(err, badger.ErrKeyNotFound):
+			return 0, 0, false, storage.ErrNotFound
+		default:
+		}
+
 		return 0, 0, false, fmt.Errorf("failed to get: %w", err)
 	}
 
