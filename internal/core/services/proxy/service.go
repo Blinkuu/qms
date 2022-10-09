@@ -22,7 +22,7 @@ const (
 	ServiceName = "proxy"
 )
 
-type allocServiceClientFunc func(context.Context, []string, string, string, int64) (int64, bool, error)
+type allocServiceClientFunc func(context.Context, []string, string, string, int64, int64) (int64, int64, bool, error)
 
 type Service struct {
 	services.NamedService
@@ -77,53 +77,53 @@ func (s *Service) Allow(ctx context.Context, namespace, resource string, tokens 
 	return s.rateClient.Allow(ctx, []string{addr}, namespace, resource, tokens)
 }
 
-func (s *Service) Alloc(ctx context.Context, namespace, resource string, tokens int64) (int64, bool, error) {
+func (s *Service) Alloc(ctx context.Context, namespace, resource string, tokens, version int64) (int64, int64, bool, error) {
 	s.allocMu.RLock()
 	defer s.allocMu.RUnlock()
 
 	switch s.cfg.AllocLBStrategy {
 	case HashRingLBStrategy:
-		return s.hashRingLocked(ctx, namespace, resource, tokens, s.allocClient.Alloc)
+		return s.hashRingLocked(ctx, namespace, resource, tokens, version, s.allocClient.Alloc)
 	case RoundRobinLBStrategy:
-		return s.roundRobinLocked(ctx, namespace, resource, tokens, s.allocClient.Alloc)
+		return s.roundRobinLocked(ctx, namespace, resource, tokens, version, s.allocClient.Alloc)
 	default:
 	}
 
-	return 0, false, fmt.Errorf("%s is not a supported alloc_lb_strategy", s.cfg.AllocLBStrategy)
+	return 0, 0, false, fmt.Errorf("%s is not a supported alloc_lb_strategy", s.cfg.AllocLBStrategy)
 }
 
-func (s *Service) Free(ctx context.Context, namespace, resource string, tokens int64) (int64, bool, error) {
+func (s *Service) Free(ctx context.Context, namespace, resource string, tokens, version int64) (int64, int64, bool, error) {
 	s.allocMu.RLock()
 	defer s.allocMu.RUnlock()
 
 	switch s.cfg.AllocLBStrategy {
 	case HashRingLBStrategy:
-		return s.hashRingLocked(ctx, namespace, resource, tokens, s.allocClient.Free)
+		return s.hashRingLocked(ctx, namespace, resource, tokens, version, s.allocClient.Free)
 	case RoundRobinLBStrategy:
-		return s.roundRobinLocked(ctx, namespace, resource, tokens, s.allocClient.Free)
+		return s.roundRobinLocked(ctx, namespace, resource, tokens, version, s.allocClient.Free)
 	default:
 	}
 
-	return 0, false, fmt.Errorf("%s is not a supported alloc_lb_strategy", s.cfg.AllocLBStrategy)
+	return 0, 0, false, fmt.Errorf("%s is not a supported alloc_lb_strategy", s.cfg.AllocLBStrategy)
 }
 
-func (s *Service) roundRobinLocked(ctx context.Context, namespace, resource string, tokens int64, f allocServiceClientFunc) (int64, bool, error) {
+func (s *Service) roundRobinLocked(ctx context.Context, namespace, resource string, tokens, version int64, f allocServiceClientFunc) (int64, int64, bool, error) {
 	addrs := make([]string, 0, len(s.allocMembers))
 	for _, instance := range s.allocMembers {
 		addrs = append(addrs, net.JoinHostPort(instance.Host, strconv.Itoa(instance.HTTPPort)))
 	}
 
-	return f(ctx, addrs, namespace, resource, tokens)
+	return f(ctx, addrs, namespace, resource, tokens, version)
 }
 
-func (s *Service) hashRingLocked(ctx context.Context, namespace, resource string, tokens int64, f allocServiceClientFunc) (int64, bool, error) {
+func (s *Service) hashRingLocked(ctx context.Context, namespace, resource string, tokens, version int64, f allocServiceClientFunc) (int64, int64, bool, error) {
 	id := strings.Join([]string{namespace, resource}, "_")
 	addr, ok := s.rateHashRing.GetNode(id)
 	if !ok {
-		return 0, false, fmt.Errorf("failed to get address from ring: id=%s", id)
+		return 0, 0, false, fmt.Errorf("failed to get address from ring: id=%s", id)
 	}
 
-	return f(ctx, []string{addr}, namespace, resource, tokens)
+	return f(ctx, []string{addr}, namespace, resource, tokens, version)
 }
 
 func (s *Service) start(_ context.Context) error {

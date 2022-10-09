@@ -45,18 +45,18 @@ func NewClient(logger log.Logger) *Client {
 	}
 }
 
-func (c *Client) Alloc(ctx context.Context, addrs []string, namespace, resource string, tokens int64) (int64, bool, error) {
+func (c *Client) Alloc(ctx context.Context, addrs []string, namespace, resource string, tokens, version int64) (int64, int64, bool, error) {
 	for _, addr := range addrs {
 		url := fmt.Sprintf("http://%s/api/v1/internal/alloc", addr)
-		body := dto.AllocRequestBody{Namespace: namespace, Resource: resource, Tokens: tokens}
+		body := dto.AllocRequestBody{Namespace: namespace, Resource: resource, Tokens: tokens, Version: version}
 		var bodyBuffer bytes.Buffer
 		if err := json.NewEncoder(&bodyBuffer).Encode(body); err != nil {
-			return 0, false, fmt.Errorf("failed to encode alloc request body: %w", err)
+			return 0, 0, false, fmt.Errorf("failed to encode alloc request body: %w", err)
 		}
 
 		r, err := http.NewRequestWithContext(ctx, http.MethodPost, url, &bodyBuffer)
 		if err != nil {
-			return 0, false, fmt.Errorf("failed to create new request with context: %w", err)
+			return 0, 0, false, fmt.Errorf("failed to create new request with context: %w", err)
 		}
 
 		res, err := c.client.Do(r)
@@ -75,34 +75,34 @@ func (c *Client) Alloc(ctx context.Context, addrs []string, namespace, resource 
 			continue
 		}
 
-		allocResponseBody := dto.ResponseBody[dto.AllocResponseBody]{}
-		if err := json.NewDecoder(res.Body).Decode(&allocResponseBody); err != nil {
+		resBody := dto.ResponseBody[dto.AllocResponseBody]{}
+		if err := json.NewDecoder(res.Body).Decode(&resBody); err != nil {
 			c.logger.Warn("failed to decode response body", "err", err)
 			continue
 		}
 
-		if allocResponseBody.Status != dto.StatusOK {
-			c.logger.Warn("invalid status code", "statusCode", allocResponseBody.Status)
+		if resBody.Status != dto.StatusOK {
+			return 0, 0, false, fmt.Errorf("invalid status code: statusCode=%d", resBody.Status)
 		}
 
-		return allocResponseBody.Result.RemainingTokens, allocResponseBody.Result.OK, nil
+		return resBody.Result.RemainingTokens, resBody.Result.CurrentVersion, resBody.Result.OK, nil
 	}
 
-	return 0, false, errors.New("all attempts failed")
+	return 0, 0, false, errors.New("all attempts failed")
 }
 
-func (c *Client) Free(ctx context.Context, addrs []string, namespace, resource string, tokens int64) (int64, bool, error) {
+func (c *Client) Free(ctx context.Context, addrs []string, namespace, resource string, tokens, version int64) (int64, int64, bool, error) {
 	for _, addr := range addrs {
 		url := fmt.Sprintf("http://%s/api/v1/internal/free", addr)
-		body := dto.FreeRequestBody{Namespace: namespace, Resource: resource, Tokens: tokens}
+		body := dto.FreeRequestBody{Namespace: namespace, Resource: resource, Tokens: tokens, Version: version}
 		var bodyBuffer bytes.Buffer
 		if err := json.NewEncoder(&bodyBuffer).Encode(body); err != nil {
-			return 0, false, fmt.Errorf("failed to encode free request body: %w", err)
+			return 0, 0, false, fmt.Errorf("failed to encode free request body: %w", err)
 		}
 
 		r, err := http.NewRequestWithContext(ctx, http.MethodPost, url, &bodyBuffer)
 		if err != nil {
-			return 0, false, fmt.Errorf("failed to create new request with context: %w", err)
+			return 0, 0, false, fmt.Errorf("failed to create new request with context: %w", err)
 		}
 
 		res, err := c.client.Do(r)
@@ -121,18 +121,18 @@ func (c *Client) Free(ctx context.Context, addrs []string, namespace, resource s
 			continue
 		}
 
-		freeResponseBody := dto.ResponseBody[dto.FreeResponseBody]{}
-		if err := json.NewDecoder(res.Body).Decode(&freeResponseBody); err != nil {
+		resBody := dto.ResponseBody[dto.FreeResponseBody]{}
+		if err := json.NewDecoder(res.Body).Decode(&resBody); err != nil {
 			c.logger.Warn("failed to decode response body", "err", err)
 			continue
 		}
 
-		if freeResponseBody.Status != dto.StatusOK {
-			c.logger.Warn("invalid status code", "statusCode", freeResponseBody.Status)
+		if resBody.Status != dto.StatusOK {
+			return 0, 0, false, fmt.Errorf("invalid status code: statusCode=%d", resBody.Status)
 		}
 
-		return freeResponseBody.Result.RemainingTokens, freeResponseBody.Result.OK, nil
+		return resBody.Result.RemainingTokens, resBody.Result.CurrentVersion, resBody.Result.OK, nil
 	}
 
-	return 0, false, errors.New("all attempts failed")
+	return 0, 0, false, errors.New("all attempts failed")
 }

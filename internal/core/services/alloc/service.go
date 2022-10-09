@@ -9,6 +9,7 @@ import (
 	"github.com/grafana/dskit/services"
 
 	"github.com/Blinkuu/qms/internal/core/ports"
+	"github.com/Blinkuu/qms/internal/core/storage"
 	"github.com/Blinkuu/qms/internal/core/storage/alloc"
 	"github.com/Blinkuu/qms/internal/core/storage/alloc/local"
 	"github.com/Blinkuu/qms/internal/core/storage/alloc/memory"
@@ -27,7 +28,7 @@ type Service struct {
 }
 
 func NewService(cfg Config, logger log.Logger, memberlist ports.MemberlistService) (*Service, error) {
-	storage, err := newStorageFromConfig(cfg, logger, memberlist)
+	st, err := newStorageFromConfig(cfg, logger, memberlist)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create storage from config: %w", err)
 	}
@@ -35,7 +36,7 @@ func NewService(cfg Config, logger log.Logger, memberlist ports.MemberlistServic
 	s := &Service{
 		NamedService: nil,
 		logger:       logger,
-		storage:      storage,
+		storage:      st,
 	}
 
 	s.NamedService = services.NewBasicService(s.start, s.run, s.stop).WithName(ServiceName)
@@ -43,16 +44,34 @@ func NewService(cfg Config, logger log.Logger, memberlist ports.MemberlistServic
 	return s, nil
 }
 
-func (s *Service) Alloc(ctx context.Context, namespace, resource string, tokens int64) (int64, bool, error) {
-	s.logger.Info("alloc called", "namespace", namespace, "resource", resource, "tokens", tokens)
+func (s *Service) Alloc(ctx context.Context, namespace, resource string, tokens, version int64) (int64, int64, bool, error) {
+	remainingTokens, currentVersion, ok, err := s.storage.Alloc(ctx, namespace, resource, tokens, version)
+	if err != nil {
+		switch {
+		case errors.Is(err, storage.ErrInvalidVersion):
+			return 0, 0, false, ErrInvalidVersion
+		default:
+		}
 
-	return s.storage.Alloc(ctx, namespace, resource, tokens)
+		return 0, 0, false, fmt.Errorf("failed to alloc: %w", err)
+	}
+
+	return remainingTokens, currentVersion, ok, nil
 }
 
-func (s *Service) Free(ctx context.Context, namespace, resource string, tokens int64) (int64, bool, error) {
-	s.logger.Info("free called", "namespace", namespace, "resource", resource, "tokens", tokens)
+func (s *Service) Free(ctx context.Context, namespace, resource string, tokens, version int64) (int64, int64, bool, error) {
+	remainingTokens, currentVersion, ok, err := s.storage.Free(ctx, namespace, resource, tokens, version)
+	if err != nil {
+		switch {
+		case errors.Is(err, storage.ErrInvalidVersion):
+			return 0, 0, false, ErrInvalidVersion
+		default:
+		}
 
-	return s.storage.Free(ctx, namespace, resource, tokens)
+		return 0, 0, false, fmt.Errorf("failed to alloc: %w", err)
+	}
+
+	return remainingTokens, currentVersion, ok, nil
 }
 
 func (s *Service) Join(ctx context.Context, replicaID uint64, raftAddr string) (bool, error) {
@@ -98,13 +117,13 @@ func (s *Service) stop(err error) error {
 }
 
 func newStorageFromConfig(cfg Config, logger log.Logger, memberlist ports.MemberlistService) (alloc.Storage, error) {
-	var storage alloc.Storage
+	var st alloc.Storage
 	switch cfg.Storage.Backend {
 	case alloc.Memory:
-		storage = memory.NewStorage()
+		st = memory.NewStorage()
 	case alloc.Local:
 		var err error
-		storage, err = local.NewStorage(cfg.Storage.Local, logger)
+		st, err = local.NewStorage(cfg.Storage.Local, logger)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create new local storage: %w", err)
 		}
@@ -124,7 +143,7 @@ func newStorageFromConfig(cfg Config, logger log.Logger, memberlist ports.Member
 			return nil, fmt.Errorf("failed to await healthy for raft storage: %w", err)
 		}
 
-		storage = raftStorage
+		st = raftStorage
 	default:
 		return nil, fmt.Errorf("%s backend is not supported", cfg.Storage.Backend)
 	}
@@ -132,11 +151,11 @@ func newStorageFromConfig(cfg Config, logger log.Logger, memberlist ports.Member
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	for _, quota := range cfg.Quotas {
-		err := storage.RegisterQuota(ctx, quota.Namespace, quota.Resource, quota.Strategy)
+		err := st.RegisterQuota(ctx, quota.Namespace, quota.Resource, quota.Strategy)
 		if err != nil {
 			logger.Warn("failed to register quota", "err", err)
 		}
 	}
 
-	return storage, nil
+	return st, nil
 }

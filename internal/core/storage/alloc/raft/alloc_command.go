@@ -13,19 +13,23 @@ type AllocCommand struct {
 	Namespace string
 	Resource  string
 	Tokens    int64
+	Version   int64
 	SMResult  statemachine.Result
 }
 
 type AllocCommandResult struct {
 	RemainingTokens int64
+	CurrentVersion  int64
 	OK              bool
+	Err             string
 }
 
-func NewAllocCommand(namespace, resource string, tokens int64) *AllocCommand {
+func NewAllocCommand(namespace, resource string, tokens, version int64) *AllocCommand {
 	return &AllocCommand{
 		Namespace: namespace,
 		Resource:  resource,
 		Tokens:    tokens,
+		Version:   version,
 		SMResult:  statemachine.Result{},
 	}
 }
@@ -44,12 +48,13 @@ func (c *AllocCommand) RaftInvoke(ctx context.Context, nh *dragonboat.NodeHost, 
 }
 
 func (c *AllocCommand) LocalInvoke(storage *storage, entryIdx uint64) error {
-	remainingTokens, ok, err := storage.alloc(c.Namespace, c.Resource, c.Tokens, entryIdx)
+	remainingTokens, currentVersion, ok, err := storage.alloc(c.Namespace, c.Resource, c.Tokens, c.Version, entryIdx)
+	var errStr string
 	if err != nil {
-		return fmt.Errorf("failed to alloc: %w", err)
+		errStr = err.Error()
 	}
 
-	data := EncodeCommandResult(AllocCommandResult{RemainingTokens: remainingTokens, OK: ok})
+	data := EncodeCommandResult(AllocCommandResult{RemainingTokens: remainingTokens, CurrentVersion: currentVersion, OK: ok, Err: errStr})
 	c.SMResult = statemachine.Result{
 		Value: 1,
 		Data:  data,

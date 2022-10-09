@@ -2,9 +2,11 @@ package handlers
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 
 	"github.com/Blinkuu/qms/internal/core/ports"
+	"github.com/Blinkuu/qms/internal/core/services/alloc"
 	"github.com/Blinkuu/qms/pkg/dto"
 )
 
@@ -20,15 +22,28 @@ func NewAllocHTTPHandler(service ports.AllocService) *AllocHTTPHandler {
 
 func (h *AllocHTTPHandler) Alloc() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var allocRequestBody dto.AllocRequestBody
-		err := json.NewDecoder(r.Body).Decode(&allocRequestBody)
+		var req dto.AllocRequestBody
+		err := json.NewDecoder(r.Body).Decode(&req)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 
-		remainingTokens, ok, err := h.service.Alloc(r.Context(), allocRequestBody.Namespace, allocRequestBody.Resource, allocRequestBody.Tokens)
+		remainingTokens, currentVersion, ok, err := h.service.Alloc(r.Context(), req.Namespace, req.Resource, req.Tokens, req.Version)
 		if err != nil {
+			switch {
+			case errors.Is(err, alloc.ErrInvalidVersion):
+				w.Header().Set("Content-Type", "application/json")
+				_ = json.NewEncoder(w).Encode(
+					dto.NewResponseBody(
+						dto.StatusAllocInvalidVersion,
+						err.Error(),
+						dto.AllocResponseBody{},
+					),
+				)
+			default:
+			}
+
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -38,6 +53,7 @@ func (h *AllocHTTPHandler) Alloc() http.HandlerFunc {
 			dto.NewOKResponseBody(
 				dto.AllocResponseBody{
 					RemainingTokens: remainingTokens,
+					CurrentVersion:  currentVersion,
 					OK:              ok,
 				},
 			),
@@ -47,15 +63,28 @@ func (h *AllocHTTPHandler) Alloc() http.HandlerFunc {
 
 func (h *AllocHTTPHandler) Free() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var freeRequestBody dto.FreeRequestBody
-		err := json.NewDecoder(r.Body).Decode(&freeRequestBody)
+		var req dto.FreeRequestBody
+		err := json.NewDecoder(r.Body).Decode(&req)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 
-		remainingTokens, ok, err := h.service.Free(r.Context(), freeRequestBody.Namespace, freeRequestBody.Resource, freeRequestBody.Tokens)
+		remainingTokens, currentVersion, ok, err := h.service.Free(r.Context(), req.Namespace, req.Resource, req.Tokens, req.Version)
 		if err != nil {
+			switch {
+			case errors.Is(err, alloc.ErrInvalidVersion):
+				w.Header().Set("Content-Type", "application/json")
+				_ = json.NewEncoder(w).Encode(
+					dto.NewResponseBody(
+						dto.StatusAllocInvalidVersion,
+						err.Error(),
+						dto.AllocResponseBody{},
+					),
+				)
+			default:
+			}
+
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -65,6 +94,7 @@ func (h *AllocHTTPHandler) Free() http.HandlerFunc {
 			dto.NewOKResponseBody(
 				dto.FreeResponseBody{
 					RemainingTokens: remainingTokens,
+					CurrentVersion:  currentVersion,
 					OK:              ok,
 				},
 			),

@@ -12,10 +12,10 @@ type MemberlistServiceClient interface {
 }
 
 type RateServiceClient interface {
-	Allow(ctx context.Context, addrs []string, namespace, resource string, tokens int64) (time.Duration, bool, error)
+	Allow(ctx context.Context, addrs []string, namespace, resource string, tokens int64) (waitTime time.Duration, ok bool, err error)
 }
 
 type AllocServiceClient interface {
-	Alloc(ctx context.Context, addrs []string, namespace, resource string, tokens int64) (int64, bool, error)
-	Free(ctx context.Context, addrs []string, namespace, resource string, tokens int64) (int64, bool, error)
+	Alloc(ctx context.Context, addrs []string, namespace, resource string, tokens, version int64) (remainingTokens, currentVersion int64, ok bool, err error)
+	Free(ctx context.Context, addrs []string, namespace, resource string, tokens, version int64) (remainingTokens, currentVersion int64, ok bool, err error)
 }
