@@ -5,13 +5,13 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/Blinkuu/qms/pkg/ratelimit"
+	ratequota "github.com/Blinkuu/qms/internal/core/storage/rate/quota"
 )
 
 type quota struct {
-	Namespace string                   `yaml:"namespace"`
-	Resource  string                   `yaml:"resource"`
-	Strategy  ratelimit.StrategyConfig `yaml:"strategy"`
+	Namespace string           `yaml:"namespace"`
+	Resource  string           `yaml:"resource"`
+	Strategy  ratequota.Config `yaml:"strategy"`
 }
 
 type quotaList []quota

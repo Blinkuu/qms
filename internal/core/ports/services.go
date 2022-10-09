@@ -4,37 +4,39 @@ import (
 	"context"
 	"time"
 
+	"github.com/grafana/dskit/services"
+
 	"github.com/Blinkuu/qms/internal/core/domain"
 )
 
 type PingService interface {
+	services.NamedService
 	Ping(ctx context.Context) string
 }
 
 type MemberlistService interface {
+	services.NamedService
 	Members(ctx context.Context) ([]domain.Instance, error)
 }
 
-type KVService interface {
-	Get(ctx context.Context, key string) (any, error)
-
-	Delete(ctx context.Context, key string) error
-
-	CAS(ctx context.Context, key string, f func(in any) (out any, retry bool, err error)) error
-
-	WatchKey(ctx context.Context, key string, f func(interface{}) bool)
-}
-
 type RateService interface {
-	Allow(ctx context.Context, namespace, resource string, tokens int64) (time.Duration, bool, error)
+	services.NamedService
+	Allow(ctx context.Context, namespace, resource string, tokens int64) (waitTime time.Duration, ok bool, err error)
 }
 
 type AllocService interface {
-	Alloc(ctx context.Context, namespace, resource string, tokens int64) (int64, bool, error)
-	Free(ctx context.Context, namespace, resource string, tokens int64) (int64, bool, error)
+	services.NamedService
+	Alloc(ctx context.Context, namespace, resource string, tokens int64) (remainingTokens int64, ok bool, err error)
+	Free(ctx context.Context, namespace, resource string, tokens int64) (remainingTokens int64, ok bool, err error)
 }
 
 type ProxyService interface {
+	services.NamedService
 	RateService
 	AllocService
+}
+
+type RaftService interface {
+	Join(ctx context.Context, replicaID uint64, raftAddr string) (alreadyMember bool, err error)
+	Exit(ctx context.Context, replicaID uint64) error
 }

@@ -6,12 +6,21 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"time"
 
-	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+	"github.com/hashicorp/go-cleanhttp"
+	"github.com/hashicorp/go-retryablehttp"
 
 	"github.com/Blinkuu/qms/internal/core/domain"
 	"github.com/Blinkuu/qms/pkg/dto"
 	"github.com/Blinkuu/qms/pkg/log"
+)
+
+const (
+	ClientName          = "memberlist-client"
+	defaultRetryWaitMin = 100 * time.Millisecond
+	defaultRetryWaitMax = 500 * time.Millisecond
+	defaultRetryMax     = 3
 )
 
 type Client struct {
@@ -20,15 +29,27 @@ type Client struct {
 }
 
 func NewClient(logger log.Logger) *Client {
+	client := retryablehttp.Client{
+		HTTPClient:   cleanhttp.DefaultPooledClient(),
+		Logger:       logger,
+		RetryWaitMin: defaultRetryWaitMin,
+		RetryWaitMax: defaultRetryWaitMax,
+		RetryMax:     defaultRetryMax,
+		CheckRetry:   retryablehttp.DefaultRetryPolicy,
+		Backoff:      retryablehttp.DefaultBackoff,
+	}
+
 	return &Client{
 		logger: logger,
-		client: &http.Client{
-			Transport: otelhttp.NewTransport(http.DefaultTransport),
-		},
+		client: client.StandardClient(),
 	}
 }
 
 func (c *Client) Members(ctx context.Context, addrs []string) ([]domain.Instance, error) {
+	if len(addrs) < 1 {
+		return nil, errors.New("empty address list")
+	}
+
 	for _, addr := range addrs {
 		url := fmt.Sprintf("http://%s/memberlist", addr)
 		r, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)

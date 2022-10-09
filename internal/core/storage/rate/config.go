@@ -1,4 +1,4 @@
-package local
+package rate
 
 import (
 	"flag"
@@ -6,10 +6,14 @@ import (
 	"github.com/Blinkuu/qms/pkg/strutil"
 )
 
+const (
+	Memory = "memory"
+)
+
 type Config struct {
-	Dir string `yaml:"dir"`
+	Backend string `yaml:"backend"`
 }
 
 func (c *Config) RegisterFlagsWithPrefix(f *flag.FlagSet, prefix string) {
-	f.StringVar(&c.Dir, strutil.WithPrefixOrDefault(prefix, "dir"), "/tmp/qms/data", "")
+	f.StringVar(&c.Backend, strutil.WithPrefixOrDefault(prefix, "backend"), Memory, "")
 }

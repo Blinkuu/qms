@@ -15,7 +15,8 @@ data:
         - qms-rate.default.svc.cluster.local
     
     rate:
-      backend: memory
+      storage:
+        backend: memory
       quotas:
         - namespace: namespace1
           resource: resource1

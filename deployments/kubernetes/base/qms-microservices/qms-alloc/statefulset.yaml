@@ -1,0 +1,75 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: qms-alloc
+  labels:
+    app: qms-alloc
+spec:
+  serviceName: qms-alloc
+  replicas: 1
+  selector:
+    matchLabels:
+      app: qms-alloc
+  template:
+    metadata:
+      labels:
+        app: qms-alloc
+      annotations:
+        prometheus.io/scrape: 'true'
+        prometheus.io/port: '6789'
+    spec:
+      containers:
+        - name: qms-alloc
+          image: qms:latest
+          args:
+            - "-config.file=/app/configs/config.yaml"
+            - "-config.expand-env=true"
+          env:
+            - name: REPLICA_ID_OVERRIDE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+          ports:
+            - name: http
+              protocol: TCP
+              containerPort: 6789
+            - name: gossip
+              protocol: TCP
+              containerPort: 7946
+          volumeMounts:
+            - name: qms-alloc-config
+              mountPath: /app/configs
+            - name: qms-alloc-volume
+              mountPath: /qms/data/raft
+      volumes:
+        - name: qms-alloc-config
+          configMap:
+            name: qms-alloc-config
+        - name: qms-alloc-volume
+          persistentVolumeClaim:
+            claimName: qms-alloc-pvc
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: qms-alloc-pv
+spec:
+  volumeMode: Filesystem
+  accessModes: [ "ReadWriteMany" ]
+  persistentVolumeReclaimPolicy: Delete
+  storageClassName: "hostpath"
+  hostPath:
+    path: /tmp/k8s/qms-alloc-pv
+  capacity:
+    storage: 15Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: qms-alloc-pvc
+spec:
+  volumeName: qms-alloc-pv
+  accessModes: [ "ReadWriteMany" ]
+  resources:
+    requests:
+      storage: 15Gi

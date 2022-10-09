@@ -8,6 +8,10 @@ import (
 	"github.com/juju/ratelimit"
 )
 
+const (
+	TokenBucketAlgorithm = "token-bucket"
+)
+
 type TokenBucket struct {
 	tb *ratelimit.Bucket
 }

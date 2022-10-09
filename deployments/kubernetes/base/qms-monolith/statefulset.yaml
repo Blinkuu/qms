@@ -1,0 +1,75 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: qms
+  labels:
+    app: qms
+spec:
+  serviceName: qms
+  replicas: 1
+  selector:
+    matchLabels:
+      app: qms
+  template:
+    metadata:
+      labels:
+        app: qms
+      annotations:
+        prometheus.io/scrape: 'true'
+        prometheus.io/port: '6789'
+    spec:
+      containers:
+        - name: qms
+          image: qms:latest
+          args:
+            - "-config.file=/app/configs/config.yaml"
+            - "-config.expand-env=true"
+          env:
+            - name: REPLICA_ID_OVERRIDE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+          ports:
+            - name: http
+              protocol: TCP
+              containerPort: 6789
+            - name: gossip
+              protocol: TCP
+              containerPort: 7946
+          volumeMounts:
+            - name: qms-config
+              mountPath: /app/configs
+            - name: qms-volume
+              mountPath: /qms/data/raft
+      volumes:
+        - name: qms-config
+          configMap:
+            name: qms-config
+        - name: qms-volume
+          persistentVolumeClaim:
+            claimName: qms-pvc
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: qms-pv
+spec:
+  volumeMode: Filesystem
+  accessModes: [ "ReadWriteMany" ]
+  persistentVolumeReclaimPolicy: Delete
+  storageClassName: "hostpath"
+  hostPath:
+    path: /tmp/k8s/qms-pv
+  capacity:
+    storage: 15Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: qms-pvc
+spec:
+  volumeName: qms-pv
+  accessModes: [ "ReadWriteMany" ]
+  resources:
+    requests:
+      storage: 15Gi

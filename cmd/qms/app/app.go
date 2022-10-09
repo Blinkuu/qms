@@ -20,6 +20,7 @@ import (
 	"github.com/Blinkuu/qms/internal/core/services/proxy"
 	"github.com/Blinkuu/qms/internal/core/services/rate"
 	"github.com/Blinkuu/qms/internal/core/services/server"
+	allocstorage "github.com/Blinkuu/qms/internal/core/storage/alloc"
 	"github.com/Blinkuu/qms/internal/handlers"
 	"github.com/Blinkuu/qms/pkg/cloud"
 	"github.com/Blinkuu/qms/pkg/cloud/native"
@@ -157,12 +158,19 @@ func (a *App) Run(ctx context.Context) error {
 
 		{
 			v1InternalApiRouter := v1ApiRouter.PathPrefix("/internal").Subrouter()
+
 			rateHandler := handlers.NewRateHTTPHandler(a.rate)
 			v1InternalApiRouter.Handle("/allow", rateHandler.Allow()).Methods(http.MethodPost)
 
 			allocHandler := handlers.NewAllocHTTPHandler(a.alloc)
 			v1InternalApiRouter.Handle("/alloc", allocHandler.Alloc()).Methods(http.MethodPost)
 			v1InternalApiRouter.Handle("/free", allocHandler.Free()).Methods(http.MethodPost)
+
+			if a.cfg.AllocConfig.Storage.Backend == allocstorage.Raft {
+				raftHandler := handlers.NewRaftHTTPHandler(a.alloc)
+				v1InternalApiRouter.Handle("/raft/join", raftHandler.Join()).Methods(http.MethodPost)
+				v1InternalApiRouter.Handle("/raft/exit", raftHandler.Exit()).Methods(http.MethodPost)
+			}
 		}
 	}
 
@@ -222,7 +230,7 @@ func (a *App) initMemberlist() (services.Service, error) {
 	eventDelegate := loggingEventDelegate{logger: a.logger}
 	a.memberlist, err = memberlist.NewService(
 		a.cfg.MemberlistConfig,
-		a.logger,
+		a.logger.With("service", memberlist.ServiceName),
 		a.discoverer,
 		eventDelegate,
 		a.cfg.Target,
@@ -232,27 +240,50 @@ func (a *App) initMemberlist() (services.Service, error) {
 }
 
 func (a *App) initPing() (services.Service, error) {
-	a.ping = ping.NewService(a.logger)
+	a.ping = ping.NewService(
+		a.logger.With("service", ping.ServiceName),
+	)
 	return a.ping, nil
 }
 
 func (a *App) initProxy() (services.Service, error) {
-	memberlistClient := memberlist.NewClient(a.logger)
-	rateClient := rate.NewClient(a.logger)
-	allocClient := alloc.NewClient(a.logger)
+	memberlistClient := memberlist.NewClient(
+		a.logger.With("service", proxy.ServiceName, "component", rate.ClientName),
+	)
+	rateClient := rate.NewClient(
+		a.logger.With("service", proxy.ServiceName, "component", rate.ClientName),
+	)
+	allocClient := alloc.NewClient(
+		a.logger.With("service", proxy.ServiceName, "component", alloc.ClientName),
+	)
 	var err error
-	a.proxy, err = proxy.NewService(a.cfg.ProxyConfig, a.logger, a.discoverer, memberlistClient, rateClient, allocClient)
+	a.proxy, err = proxy.NewService(
+		a.cfg.ProxyConfig,
+		a.logger.With("service", proxy.ServiceName),
+		a.discoverer,
+		memberlistClient,
+		rateClient,
+		allocClient,
+	)
 	return a.proxy, err
 }
 
 func (a *App) initAlloc() (services.Service, error) {
 	var err error
-	a.alloc, err = alloc.NewService(a.cfg.AllocConfig, a.logger)
+	a.alloc, err = alloc.NewService(
+		a.cfg.AllocConfig,
+		a.logger.With("service", alloc.ServiceName),
+		a.memberlist,
+	)
 	return a.alloc, err
 }
 
 func (a *App) initRate() (services.Service, error) {
 	var err error
-	a.rate, err = rate.NewService(a.cfg.RateConfig, a.clock, a.logger)
+	a.rate, err = rate.NewService(
+		a.cfg.RateConfig,
+		a.clock,
+		a.logger.With("service", rate.ServiceName),
+	)
 	return a.rate, err
 }

@@ -1,12 +1,9 @@
-load('ext://helm_resource', 'helm_resource', 'helm_repo')
-
 # Parse args
 config.define_string_list("to-run", args=True)
 cfg = config.parse()
 resources = [
     'go-compile-qms',
     'go-compile-sut',
-    'redis',
     'grafana-agent-logs',
     'grafana-agent-metrics',
     'grafana-agent-traces',
@@ -14,6 +11,7 @@ resources = [
     'loki',
     'mimir',
     'tempo',
+    'sut'
 ]
 groups = {
   'monolith': ['qms'],
@@ -26,9 +24,6 @@ for arg in cfg.get('to-run', []):
     # also support specifying individual services instead of groups, e.g. `tilt up a b d`
     resources.append(arg)
 config.set_enabled_resources(resources)
-
-# Add Helm repos
-helm_repo('bitnami-charts', 'https://charts.bitnami.com/bitnami')
 
 # Compile
 local_resource(
@@ -56,15 +51,6 @@ docker_build(
     'sut',
     '.',
     dockerfile='cmd/sut/Dockerfile',
-)
-
-# Setup resources
-helm_resource(
-    'redis',
-    'bitnami-charts/redis',
-    port_forwards=['6379'],
-    flags=["--set", "architecture=standalone"],
-    labels=["db"]
 )
 
 k8s_yaml(kustomize('./deployments/kubernetes/envs/dev'))

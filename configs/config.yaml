@@ -15,9 +15,11 @@ proxy:
     - 127.0.0.1:6789
 
 alloc:
-  backend: local
-  local:
-    dir: /tmp/qms/data/alloc
+  storage:
+    backend: raft
+    raft:
+      replica_id: 1
+
   quotas:
     - namespace: namespace1
       resource: resource1
@@ -25,7 +27,8 @@ alloc:
         capacity: 10
 
 rate:
-  backend: memory
+  storage:
+    backend: memory
   quotas:
     - namespace: namespace1
       resource: resource1

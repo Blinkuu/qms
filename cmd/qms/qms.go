@@ -5,15 +5,16 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
+	"github.com/a8m/envsubst"
 	"github.com/benbjohnson/clock"
-	"github.com/mitchellh/mapstructure"
+	"github.com/grafana/dskit/flagext"
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/spf13/viper"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
@@ -24,6 +25,7 @@ import (
 	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	"gopkg.in/yaml.v2"
 
 	"github.com/Blinkuu/qms/cmd/qms/app"
 	"github.com/Blinkuu/qms/pkg/log"
@@ -57,7 +59,18 @@ func main() {
 		logger.Panic("failed to setup tracer provider", "err", err)
 	}
 
-	a, err := app.New(cfg, clock.New(), logger, prometheus.DefaultRegisterer, tp)
+	hostname, err := os.Hostname()
+	if err != nil {
+		logger.Panic("failed to get hostname", "err", err)
+	}
+
+	a, err := app.New(
+		cfg,
+		clock.New(),
+		logger.With("hostname", hostname),
+		prometheus.DefaultRegisterer,
+		tp,
+	)
 	if err != nil {
 		logger.Fatal("failed to create new app", "err", err)
 	}
@@ -95,22 +108,54 @@ func runAppAndWaitForSignal(app *app.App) error {
 }
 
 func loadConfig() (app.Config, error) {
-	viper.AddConfigPath("./configs")
-	viper.SetConfigName("config")
-	viper.SetConfigType("yaml")
-	if err := viper.ReadInConfig(); err != nil {
-		return app.Config{}, fmt.Errorf("failed to read in config: %w", err)
+	const (
+		configFileOption      = "config.file"
+		configExpandEnvOption = "config.expand-env"
+	)
+
+	var (
+		configFile      string
+		configExpandEnv bool
+	)
+
+	fs := flag.NewFlagSet("", flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
+
+	fs.StringVar(&configFile, configFileOption, "./configs/config.yaml", "")
+	fs.BoolVar(&configExpandEnv, configExpandEnvOption, false, "")
+
+	args := os.Args[1:]
+	for len(args) > 0 {
+		err := fs.Parse(args)
+		fmt.Println(err)
+		args = args[1:]
 	}
 
 	cfg := app.Config{}
 	cfg.RegisterFlagsWithPrefix(flag.CommandLine, "")
+	if configFile != "" {
+		buff, err := os.ReadFile(configFile)
+		if err != nil {
+			return app.Config{}, fmt.Errorf("failed to read configFile %s: %w", configFile, err)
+		}
 
-	opt := viper.DecoderConfigOption(func(decoderConfig *mapstructure.DecoderConfig) {
-		decoderConfig.TagName = "yaml"
-	})
-	if err := viper.Unmarshal(&cfg, opt); err != nil {
-		return app.Config{}, fmt.Errorf("failed to unmarshal config: %w", err)
+		if configExpandEnv {
+			s, err := envsubst.Bytes(buff)
+			if err != nil {
+				return app.Config{}, fmt.Errorf("failed to expand env vars from configFile %s: %w", configFile, err)
+			}
+			buff = s
+		}
+
+		err = yaml.UnmarshalStrict(buff, &cfg)
+		if err != nil {
+			return app.Config{}, fmt.Errorf("failed to parse configFile %s: %w", configFile, err)
+		}
 	}
+
+	flagext.IgnoredFlag(flag.CommandLine, configFileOption, "Configuration file to load")
+	flagext.IgnoredFlag(flag.CommandLine, configExpandEnvOption, "Whether to expand environment variables in config file")
+	flag.Parse()
 
 	return cfg, nil
 }
