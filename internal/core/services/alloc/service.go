@@ -44,10 +44,27 @@ func NewService(cfg Config, logger log.Logger, memberlist ports.MemberlistServic
 	return s, nil
 }
 
+func (s *Service) View(ctx context.Context, namespace, resource string) (int64, int64, int64, error) {
+	allocated, capacity, version, err := s.storage.View(ctx, namespace, resource)
+	if err != nil {
+		switch {
+		case errors.Is(err, storage.ErrNotFound):
+			return 0, 0, 0, ErrNotFound
+		default:
+		}
+
+		return 0, 0, 0, fmt.Errorf("failed to view: %w", err)
+	}
+
+	return allocated, capacity, version, nil
+}
+
 func (s *Service) Alloc(ctx context.Context, namespace, resource string, tokens, version int64) (int64, int64, bool, error) {
 	remainingTokens, currentVersion, ok, err := s.storage.Alloc(ctx, namespace, resource, tokens, version)
 	if err != nil {
 		switch {
+		case errors.Is(err, storage.ErrNotFound):
+			return 0, 0, false, ErrNotFound
 		case errors.Is(err, storage.ErrInvalidVersion):
 			return 0, 0, false, ErrInvalidVersion
 		default:
@@ -63,6 +80,8 @@ func (s *Service) Free(ctx context.Context, namespace, resource string, tokens, 
 	remainingTokens, currentVersion, ok, err := s.storage.Free(ctx, namespace, resource, tokens, version)
 	if err != nil {
 		switch {
+		case errors.Is(err, storage.ErrNotFound):
+			return 0, 0, false, ErrNotFound
 		case errors.Is(err, storage.ErrInvalidVersion):
 			return 0, 0, false, ErrInvalidVersion
 		default:

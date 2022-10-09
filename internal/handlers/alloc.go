@@ -20,6 +20,47 @@ func NewAllocHTTPHandler(service ports.AllocService) *AllocHTTPHandler {
 	}
 }
 
+func (h *AllocHTTPHandler) View() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var req dto.ViewRequestBody
+		err := json.NewDecoder(r.Body).Decode(&req)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		allocated, capacity, version, err := h.service.View(r.Context(), req.Namespace, req.Resource)
+		if err != nil {
+			switch {
+			case errors.Is(err, alloc.ErrNotFound):
+				w.Header().Set("Content-Type", "application/json")
+				_ = json.NewEncoder(w).Encode(
+					dto.NewResponseBody(
+						dto.StatusAllocNotFound,
+						err.Error(),
+						dto.ViewResponseBody{},
+					),
+				)
+				return
+			default:
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(
+			dto.NewOKResponseBody(
+				dto.ViewResponseBody{
+					Allocated: allocated,
+					Capacity:  capacity,
+					Version:   version,
+				},
+			),
+		)
+	}
+}
+
 func (h *AllocHTTPHandler) Alloc() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req dto.AllocRequestBody
@@ -32,6 +73,16 @@ func (h *AllocHTTPHandler) Alloc() http.HandlerFunc {
 		remainingTokens, currentVersion, ok, err := h.service.Alloc(r.Context(), req.Namespace, req.Resource, req.Tokens, req.Version)
 		if err != nil {
 			switch {
+			case errors.Is(err, alloc.ErrNotFound):
+				w.Header().Set("Content-Type", "application/json")
+				_ = json.NewEncoder(w).Encode(
+					dto.NewResponseBody(
+						dto.StatusAllocNotFound,
+						err.Error(),
+						dto.AllocResponseBody{},
+					),
+				)
+				return
 			case errors.Is(err, alloc.ErrInvalidVersion):
 				w.Header().Set("Content-Type", "application/json")
 				_ = json.NewEncoder(w).Encode(
@@ -41,11 +92,11 @@ func (h *AllocHTTPHandler) Alloc() http.HandlerFunc {
 						dto.AllocResponseBody{},
 					),
 				)
+				return
 			default:
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
 			}
-
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
 		}
 
 		w.Header().Set("Content-Type", "application/json")
@@ -73,6 +124,16 @@ func (h *AllocHTTPHandler) Free() http.HandlerFunc {
 		remainingTokens, currentVersion, ok, err := h.service.Free(r.Context(), req.Namespace, req.Resource, req.Tokens, req.Version)
 		if err != nil {
 			switch {
+			case errors.Is(err, alloc.ErrNotFound):
+				w.Header().Set("Content-Type", "application/json")
+				_ = json.NewEncoder(w).Encode(
+					dto.NewResponseBody(
+						dto.StatusAllocNotFound,
+						err.Error(),
+						dto.FreeResponseBody{},
+					),
+				)
+				return
 			case errors.Is(err, alloc.ErrInvalidVersion):
 				w.Header().Set("Content-Type", "application/json")
 				_ = json.NewEncoder(w).Encode(
@@ -82,11 +143,11 @@ func (h *AllocHTTPHandler) Free() http.HandlerFunc {
 						dto.AllocResponseBody{},
 					),
 				)
+				return
 			default:
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
 			}
-
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
 		}
 
 		w.Header().Set("Content-Type", "application/json")

@@ -7,6 +7,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/Blinkuu/qms/internal/core/storage"
 	"github.com/Blinkuu/qms/internal/core/storage/alloc/quota"
 )
 
@@ -22,7 +23,20 @@ func NewStorage() *Storage {
 	}
 }
 
-func (s *Storage) Alloc(ctx context.Context, namespace, resource string, tokens, version int64) (int64, int64, bool, error) {
+func (s *Storage) View(_ context.Context, namespace, resource string) (int64, int64, int64, error) {
+	id := strings.Join([]string{namespace, resource}, "_")
+
+	bucket, found := s.buckets[id]
+	if !found {
+		return 0, 0, 0, storage.ErrNotFound
+	}
+
+	allocated, capacity, version := bucket.View()
+
+	return allocated, capacity, version, nil
+}
+
+func (s *Storage) Alloc(_ context.Context, namespace, resource string, tokens, version int64) (int64, int64, bool, error) {
 	id := strings.Join([]string{namespace, resource}, "_")
 
 	s.bucketsMu.RLock()
@@ -30,10 +44,10 @@ func (s *Storage) Alloc(ctx context.Context, namespace, resource string, tokens,
 
 	bucket, found := s.buckets[id]
 	if !found {
-		return 0, 0, false, fmt.Errorf("st for %s not found", id)
+		return 0, 0, false, storage.ErrNotFound
 	}
 
-	remainingTokens, currentVersion, ok, err := bucket.Alloc(ctx, tokens, version)
+	remainingTokens, currentVersion, ok, err := bucket.Alloc(tokens, version)
 	if err != nil {
 		return 0, 0, false, fmt.Errorf("failed to alloc: %w", err)
 	}
@@ -41,7 +55,7 @@ func (s *Storage) Alloc(ctx context.Context, namespace, resource string, tokens,
 	return remainingTokens, currentVersion, ok, nil
 }
 
-func (s *Storage) Free(ctx context.Context, namespace, resource string, tokens, version int64) (int64, int64, bool, error) {
+func (s *Storage) Free(_ context.Context, namespace, resource string, tokens, version int64) (int64, int64, bool, error) {
 	id := strings.Join([]string{namespace, resource}, "_")
 
 	s.bucketsMu.RLock()
@@ -49,10 +63,10 @@ func (s *Storage) Free(ctx context.Context, namespace, resource string, tokens, 
 
 	bucket, found := s.buckets[id]
 	if !found {
-		return 0, 0, false, fmt.Errorf("st for %s not found", id)
+		return 0, 0, false, storage.ErrNotFound
 	}
 
-	remainingTokens, currentVersion, ok, err := bucket.Free(ctx, tokens, version)
+	remainingTokens, currentVersion, ok, err := bucket.Free(tokens, version)
 	if err != nil {
 		return 0, 0, false, fmt.Errorf("failed to free: %w", err)
 	}

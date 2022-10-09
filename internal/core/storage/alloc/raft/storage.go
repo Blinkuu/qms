@@ -171,6 +171,30 @@ func (s *Storage) Run(ctx context.Context) error {
 	}
 }
 
+func (s *Storage) View(ctx context.Context, namespace, resource string) (int64, int64, int64, error) {
+	id := strings.Join([]string{namespace, resource}, "_")
+	shardID := shardIDFromString(id, s.cfg.Shards)
+
+	viewCmd := NewViewCommand(namespace, resource)
+	result, err := viewCmd.RaftInvoke(ctx, s.nh, shardID, s.sessions[shardID])
+	if err != nil {
+		return 0, 0, 0, fmt.Errorf("failed to raft invoke: %w", err)
+	}
+
+	typedResult := result.(ViewCommandResult)
+	if typedResult.Err != "" {
+		switch {
+		case stor.IsErrNotFound(typedResult.Err):
+			return 0, 0, 0, stor.ErrNotFound
+		default:
+			return 0, 0, 0, errors.New(typedResult.Err)
+		}
+
+	}
+
+	return typedResult.Allocated, typedResult.Capacity, typedResult.Version, nil
+}
+
 func (s *Storage) Alloc(ctx context.Context, namespace, resource string, tokens, version int64) (int64, int64, bool, error) {
 	id := strings.Join([]string{namespace, resource}, "_")
 	shardID := shardIDFromString(id, s.cfg.Shards)
@@ -183,11 +207,14 @@ func (s *Storage) Alloc(ctx context.Context, namespace, resource string, tokens,
 
 	typedResult := result.(AllocCommandResult)
 	if typedResult.Err != "" {
-		if stor.IsInvalidVersionError(typedResult.Err) {
+		switch {
+		case stor.IsErrNotFound(typedResult.Err):
+			return 0, 0, false, stor.ErrNotFound
+		case stor.IsErrInvalidVersion(typedResult.Err):
 			return 0, 0, false, stor.ErrInvalidVersion
+		default:
+			return 0, 0, false, errors.New(typedResult.Err)
 		}
-
-		return 0, 0, false, errors.New(typedResult.Err)
 	}
 
 	return typedResult.RemainingTokens, typedResult.CurrentVersion, typedResult.OK, nil
@@ -205,7 +232,10 @@ func (s *Storage) Free(ctx context.Context, namespace, resource string, tokens, 
 
 	typedResult := result.(FreeCommandResult)
 	if typedResult.Err != "" {
-		if stor.IsInvalidVersionError(typedResult.Err) {
+		switch {
+		case stor.IsErrNotFound(typedResult.Err):
+			return 0, 0, false, stor.ErrNotFound
+		case stor.IsErrInvalidVersion(typedResult.Err):
 			return 0, 0, false, stor.ErrInvalidVersion
 		}
 
@@ -362,6 +392,30 @@ func newStorage(dir string, logger log.Logger) (*storage, error) {
 	}, nil
 }
 
+func (s *storage) view(namespace, resource string) (int64, int64, int64, error) {
+	if s.db.IsClosed() {
+		return 0, 0, 0, errors.New("badger db is closed")
+	}
+
+	id := strings.Join([]string{namespace, resource}, "_")
+
+	txn := s.db.NewTransaction(true)
+	defer txn.Discard()
+
+	it, err := get[item](txn, id)
+	if err != nil {
+		switch {
+		case errors.Is(err, badger.ErrKeyNotFound):
+			return 0, 0, 0, stor.ErrNotFound
+		default:
+		}
+
+		return 0, 0, 0, fmt.Errorf("failed to get: %w", err)
+	}
+
+	return it.Allocated, it.Capacity, it.Version, nil
+}
+
 func (s *storage) alloc(namespace, resource string, tokens, version int64, entryIdx uint64) (int64, int64, bool, error) {
 	if s.db.IsClosed() {
 		return 0, 0, false, errors.New("badger db is closed")
@@ -374,6 +428,12 @@ func (s *storage) alloc(namespace, resource string, tokens, version int64, entry
 
 	it, err := get[item](txn, id)
 	if err != nil {
+		switch {
+		case errors.Is(err, badger.ErrKeyNotFound):
+			return 0, 0, false, stor.ErrNotFound
+		default:
+		}
+
 		return 0, 0, false, fmt.Errorf("failed to get: %w", err)
 	}
 
@@ -415,6 +475,12 @@ func (s *storage) free(namespace, resource string, tokens, version int64, entryI
 
 	it, err := get[item](txn, id)
 	if err != nil {
+		switch {
+		case errors.Is(err, badger.ErrKeyNotFound):
+			return 0, 0, false, stor.ErrNotFound
+		default:
+		}
+
 		return 0, 0, false, fmt.Errorf("failed to get: %w", err)
 	}
 

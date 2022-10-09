@@ -151,10 +151,12 @@ func (a *App) Run(ctx context.Context) error {
 	{
 		v1ApiRouter := a.server.HTTP.PathPrefix("/api/v1").Subrouter()
 
-		proxyHandler := handlers.NewProxyHTTPHandler(a.proxy)
-		v1ApiRouter.Handle("/allow", proxyHandler.Allow()).Methods(http.MethodPost)
-		v1ApiRouter.Handle("/alloc", proxyHandler.Alloc()).Methods(http.MethodPost)
-		v1ApiRouter.Handle("/free", proxyHandler.Free()).Methods(http.MethodPost)
+		rateProxyHandler := handlers.NewRateHTTPHandler(a.proxy)
+		allocProxyHandler := handlers.NewAllocHTTPHandler(a.proxy)
+		v1ApiRouter.Handle("/allow", rateProxyHandler.Allow()).Methods(http.MethodPost)
+		v1ApiRouter.Handle("/view", allocProxyHandler.View()).Methods(http.MethodPost)
+		v1ApiRouter.Handle("/alloc", allocProxyHandler.Alloc()).Methods(http.MethodPost)
+		v1ApiRouter.Handle("/free", allocProxyHandler.Free()).Methods(http.MethodPost)
 
 		{
 			v1InternalApiRouter := v1ApiRouter.PathPrefix("/internal").Subrouter()
@@ -163,6 +165,7 @@ func (a *App) Run(ctx context.Context) error {
 			v1InternalApiRouter.Handle("/allow", rateHandler.Allow()).Methods(http.MethodPost)
 
 			allocHandler := handlers.NewAllocHTTPHandler(a.alloc)
+			v1InternalApiRouter.Handle("/view", allocHandler.View()).Methods(http.MethodPost)
 			v1InternalApiRouter.Handle("/alloc", allocHandler.Alloc()).Methods(http.MethodPost)
 			v1InternalApiRouter.Handle("/free", allocHandler.Free()).Methods(http.MethodPost)
 

@@ -1,7 +1,6 @@
 package memory
 
 import (
-	"context"
 	"sync"
 
 	"github.com/Blinkuu/qms/internal/core/storage"
@@ -27,7 +26,14 @@ func NewCappedBucket(capacity, version int64) *CappedBucket {
 	}
 }
 
-func (c *CappedBucket) Alloc(_ context.Context, tokens, version int64) (int64, int64, bool, error) {
+func (c *CappedBucket) View() (int64, int64, int64) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	return c.allocated, c.capacity, c.version
+}
+
+func (c *CappedBucket) Alloc(tokens, version int64) (int64, int64, bool, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -45,7 +51,7 @@ func (c *CappedBucket) Alloc(_ context.Context, tokens, version int64) (int64, i
 	return c.remainingTokensLocked(), c.version, true, nil
 }
 
-func (c *CappedBucket) Free(_ context.Context, tokens, version int64) (int64, int64, bool, error) {
+func (c *CappedBucket) Free(tokens, version int64) (int64, int64, bool, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 

@@ -40,8 +40,17 @@ func (m *stateMachine) Update(entries []statemachine.Entry) ([]statemachine.Entr
 	return result, nil
 }
 
-func (m *stateMachine) Lookup(_ interface{}) (interface{}, error) {
-	panic("implement me!")
+func (m *stateMachine) Lookup(query interface{}) (interface{}, error) {
+	cmd, err := DecodeCommand(query.([]byte))
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode command: %w", err)
+	}
+
+	if err := cmd.LocalInvoke(m.storage, 0); err != nil {
+		return nil, err
+	}
+
+	return cmd.Result().Data, nil
 }
 
 func (m *stateMachine) Sync() error {

@@ -1,7 +1,8 @@
 package dto
 
 const (
-	StatusAllocInvalidVersion = 1002
+	StatusAllocNotFound       = 1002
+	StatusAllocInvalidVersion = 1003
 )
 
 type AllocRequestBody struct {

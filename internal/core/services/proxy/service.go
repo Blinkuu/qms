@@ -22,8 +22,6 @@ const (
 	ServiceName = "proxy"
 )
 
-type allocServiceClientFunc func(context.Context, []string, string, string, int64, int64) (int64, int64, bool, error)
-
 type Service struct {
 	services.NamedService
 	cfg              Config
@@ -77,53 +75,89 @@ func (s *Service) Allow(ctx context.Context, namespace, resource string, tokens 
 	return s.rateClient.Allow(ctx, []string{addr}, namespace, resource, tokens)
 }
 
+func (s *Service) View(ctx context.Context, namespace, resource string) (int64, int64, int64, error) {
+	s.allocMu.RLock()
+	defer s.allocMu.RUnlock()
+
+	var addrs []string
+	switch s.cfg.AllocLBStrategy {
+	case HashRingLBStrategy:
+		a, err := s.hashRingLocked(namespace, resource)
+		if err != nil {
+			return 0, 0, 0, fmt.Errorf("failed to pick addresses from hash ring: %w", err)
+		}
+
+		addrs = a
+	case RoundRobinLBStrategy:
+		addrs = s.roundRobinLocked()
+	default:
+		return 0, 0, 0, fmt.Errorf("%s is not a supported alloc_lb_strategy", s.cfg.AllocLBStrategy)
+	}
+
+	return s.allocClient.View(ctx, addrs, namespace, resource)
+}
+
 func (s *Service) Alloc(ctx context.Context, namespace, resource string, tokens, version int64) (int64, int64, bool, error) {
 	s.allocMu.RLock()
 	defer s.allocMu.RUnlock()
 
+	var addrs []string
 	switch s.cfg.AllocLBStrategy {
 	case HashRingLBStrategy:
-		return s.hashRingLocked(ctx, namespace, resource, tokens, version, s.allocClient.Alloc)
+		a, err := s.hashRingLocked(namespace, resource)
+		if err != nil {
+			return 0, 0, false, fmt.Errorf("failed to pick addresses from hash ring: %w", err)
+		}
+
+		addrs = a
 	case RoundRobinLBStrategy:
-		return s.roundRobinLocked(ctx, namespace, resource, tokens, version, s.allocClient.Alloc)
+		addrs = s.roundRobinLocked()
 	default:
+		return 0, 0, false, fmt.Errorf("%s is not a supported alloc_lb_strategy", s.cfg.AllocLBStrategy)
 	}
 
-	return 0, 0, false, fmt.Errorf("%s is not a supported alloc_lb_strategy", s.cfg.AllocLBStrategy)
+	return s.allocClient.Alloc(ctx, addrs, namespace, resource, tokens, version)
 }
 
 func (s *Service) Free(ctx context.Context, namespace, resource string, tokens, version int64) (int64, int64, bool, error) {
 	s.allocMu.RLock()
 	defer s.allocMu.RUnlock()
 
+	var addrs []string
 	switch s.cfg.AllocLBStrategy {
 	case HashRingLBStrategy:
-		return s.hashRingLocked(ctx, namespace, resource, tokens, version, s.allocClient.Free)
+		a, err := s.hashRingLocked(namespace, resource)
+		if err != nil {
+			return 0, 0, false, fmt.Errorf("failed to pick addresses from hash ring: %w", err)
+		}
+
+		addrs = a
 	case RoundRobinLBStrategy:
-		return s.roundRobinLocked(ctx, namespace, resource, tokens, version, s.allocClient.Free)
+		addrs = s.roundRobinLocked()
 	default:
+		return 0, 0, false, fmt.Errorf("%s is not a supported alloc_lb_strategy", s.cfg.AllocLBStrategy)
 	}
 
-	return 0, 0, false, fmt.Errorf("%s is not a supported alloc_lb_strategy", s.cfg.AllocLBStrategy)
+	return s.allocClient.Free(ctx, addrs, namespace, resource, tokens, version)
 }
 
-func (s *Service) roundRobinLocked(ctx context.Context, namespace, resource string, tokens, version int64, f allocServiceClientFunc) (int64, int64, bool, error) {
+func (s *Service) roundRobinLocked() []string {
 	addrs := make([]string, 0, len(s.allocMembers))
 	for _, instance := range s.allocMembers {
 		addrs = append(addrs, net.JoinHostPort(instance.Host, strconv.Itoa(instance.HTTPPort)))
 	}
 
-	return f(ctx, addrs, namespace, resource, tokens, version)
+	return addrs
 }
 
-func (s *Service) hashRingLocked(ctx context.Context, namespace, resource string, tokens, version int64, f allocServiceClientFunc) (int64, int64, bool, error) {
+func (s *Service) hashRingLocked(namespace, resource string) ([]string, error) {
 	id := strings.Join([]string{namespace, resource}, "_")
 	addr, ok := s.rateHashRing.GetNode(id)
 	if !ok {
-		return 0, 0, false, fmt.Errorf("failed to get address from ring: id=%s", id)
+		return nil, fmt.Errorf("failed to get address from ring: id=%s", id)
 	}
 
-	return f(ctx, []string{addr}, namespace, resource, tokens, version)
+	return []string{addr}, nil
 }
 
 func (s *Service) start(_ context.Context) error {
