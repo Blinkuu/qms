@@ -2,29 +2,20 @@ package timeunit
 
 import (
 	"fmt"
+	"time"
 )
 
-type Unit int64
-
-const (
-	Second Unit = 1
-	Minute      = 60 * Second
-	Hour        = 60 * Minute
-	Day         = 24 * Hour
-)
-
-func Parse(unit string) (Unit, error) {
+func Parse(unit string) (time.Duration, error) {
 	switch unit {
 	case "second":
-		return Second, nil
+		return time.Second, nil
 	case "minute":
-		return Minute, nil
+		return time.Minute, nil
 	case "hour":
-		return Hour, nil
+		return time.Hour, nil
 	case "day":
-		return Day, nil
+		return 24 * time.Hour, nil
 	default:
-		var zero Unit
-		return zero, fmt.Errorf("unit %s is not supported", unit)
+		return 0, fmt.Errorf("unit %s is not supported", unit)
 	}
 }

@@ -16,7 +16,7 @@ type TokenBucket struct {
 	tb *ratelimit.Bucket
 }
 
-func NewTokenBucket(clock clock.Clock, refillRate int64, capacity int64) *TokenBucket {
+func NewTokenBucket(clock clock.Clock, refillRate float64, capacity int64) *TokenBucket {
 	if refillRate <= 0 {
 		panic("refill rate must be greater than 0")
 	}
@@ -26,7 +26,7 @@ func NewTokenBucket(clock clock.Clock, refillRate int64, capacity int64) *TokenB
 	}
 
 	return &TokenBucket{
-		tb: ratelimit.NewBucketWithRateAndClock(float64(refillRate), capacity, clock),
+		tb: ratelimit.NewBucketWithRateAndClock(refillRate, capacity, clock),
 	}
 }
 

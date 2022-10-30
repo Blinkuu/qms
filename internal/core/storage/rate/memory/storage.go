@@ -14,17 +14,21 @@ import (
 	"github.com/Blinkuu/qms/pkg/timeunit"
 )
 
+type allower interface {
+	Allow(ctx context.Context, tokens int64) (waitTime time.Duration, ok bool, err error)
+}
+
 type Storage struct {
-	clock     clock.Clock
-	buckets   map[string]*TokenBucket
-	bucketsMu *sync.RWMutex
+	clock      clock.Clock
+	strategies map[string]allower
+	bucketsMu  *sync.RWMutex
 }
 
 func NewStorage(clock clock.Clock) *Storage {
 	return &Storage{
-		clock:     clock,
-		buckets:   make(map[string]*TokenBucket),
-		bucketsMu: &sync.RWMutex{},
+		clock:      clock,
+		strategies: make(map[string]allower),
+		bucketsMu:  &sync.RWMutex{},
 	}
 }
 
@@ -34,7 +38,7 @@ func (s *Storage) Allow(ctx context.Context, namespace, resource string, tokens 
 	s.bucketsMu.RLock()
 	defer s.bucketsMu.RUnlock()
 
-	bucket, found := s.buckets[id]
+	bucket, found := s.strategies[id]
 	if !found {
 		return 0, false, fmt.Errorf("st for %s not found", id)
 	}
@@ -52,19 +56,23 @@ func (s *Storage) RegisterQuota(_ context.Context, namespace, resource string, c
 	defer s.bucketsMu.Unlock()
 
 	id := strings.Join([]string{namespace, resource}, "_")
-	_, found := s.buckets[id]
+	_, found := s.strategies[id]
 	if found {
 		return errors.New("only a single strategy for a namespace-resource pair can be registered")
 	}
 
-	parsedUnit, err := timeunit.Parse(cfg.Unit)
+	unit, err := timeunit.Parse(cfg.Unit)
 	if err != nil {
 		return fmt.Errorf("failed to parse time unit: %w", err)
 	}
 
 	switch cfg.Algorithm {
+	case FixedWindowAlgorithm:
+		s.strategies[id] = NewFixedWindow(s.clock, unit, cfg.RequestPerUnit)
+
+		return nil
 	case TokenBucketAlgorithm:
-		s.buckets[id] = NewTokenBucket(s.clock, cfg.RequestPerUnit/int64(parsedUnit), cfg.RequestPerUnit*int64(parsedUnit))
+		s.strategies[id] = NewTokenBucket(s.clock, float64(cfg.RequestPerUnit)/unit.Seconds(), cfg.RequestPerUnit)
 
 		return nil
 	default:

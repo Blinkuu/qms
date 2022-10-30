@@ -9,36 +9,36 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestNewTokenBucket_ReturnsNewTokenBucketWithCorrectArguments(t *testing.T) {
+func TestNewFixedWindow_ReturnsNewFixedWindowWithCorrectArguments(t *testing.T) {
 	// When
-	got := NewTokenBucket(clock.NewMock(), 1, 1)
+	got := NewFixedWindow(clock.NewMock(), 1, 1)
 
 	// Then
 	assert.NotNil(t, got)
 }
 
-func TestNewTokenBucket_PanicsWithInvalidRefillRate(t *testing.T) {
+func TestNewFixedWindow_PanicsWithInvalidInterval(t *testing.T) {
 	// When
-	panicFunc := func() { _ = NewTokenBucket(clock.NewMock(), 0, 1) }
+	panicFunc := func() { _ = NewFixedWindow(clock.NewMock(), 0, 1) }
 
 	// Then
 	assert.Panics(t, panicFunc)
 }
 
-func TestNewTokenBucket_PanicsWithInvalidCapacity(t *testing.T) {
+func TestNewFixedWindow_PanicsWithInvalidCapacity(t *testing.T) {
 	// When
-	panicFunc := func() { _ = NewTokenBucket(clock.NewMock(), 1, 0) }
+	panicFunc := func() { _ = NewFixedWindow(clock.NewMock(), 1, 0) }
 
 	// Then
 	assert.Panics(t, panicFunc)
 }
 
-func TestTokenBucket_Allow_ReturnsNoErrorNotOKAndZeroWithMoreTokensRequestedThanCapacity(t *testing.T) {
+func TestFixedWindow_Allow_ReturnsNoErrorNotOKAndZeroWithMoreTokensRequestedThanCapacity(t *testing.T) {
 	// Given
-	rr := float64(2)
+	i := 2 * time.Second
 	c := int64(4)
 	cl := clock.NewMock()
-	b := NewTokenBucket(cl, rr, c)
+	b := NewFixedWindow(cl, i, c)
 
 	// When
 	wait, ok, err := b.Allow(context.Background(), 5)
@@ -46,15 +46,15 @@ func TestTokenBucket_Allow_ReturnsNoErrorNotOKAndZeroWithMoreTokensRequestedThan
 	// Then
 	assert.NoError(t, err)
 	assert.False(t, ok)
-	assert.Zero(t, wait)
+	assert.Equal(t, i, wait)
 }
 
-func TestTokenBucket_Allow_ReturnsNoErrorOKAndZeroWithLessTokensRequestedThanCapacity(t *testing.T) {
+func TestFixedWindow_Allow_ReturnsNoErrorOKAndZeroWithLessTokensRequestedThanCapacity(t *testing.T) {
 	// Given
-	rr := float64(2)
+	i := 2 * time.Second
 	c := int64(4)
 	cl := clock.NewMock()
-	b := NewTokenBucket(cl, rr, c)
+	b := NewFixedWindow(cl, i, c)
 
 	// When
 	wait, ok, err := b.Allow(context.Background(), 3)
@@ -65,12 +65,12 @@ func TestTokenBucket_Allow_ReturnsNoErrorOKAndZeroWithLessTokensRequestedThanCap
 	assert.Zero(t, wait)
 }
 
-func TestTokenBucket_Allow_ReturnsNoErrorNotOKWhenTokensAreExhausted(t *testing.T) {
+func TestFixedWindow_Allow_ReturnsNoErrorNotOKWhenTokensAreExhausted(t *testing.T) {
 	// Given
 	startTime := time.Date(2022, time.Month(1), 11, 0, 0, 1, 0, time.UTC)
 	c := clock.NewMock()
 	c.Set(startTime)
-	b := NewTokenBucket(c, 2, 4)
+	b := NewFixedWindow(c, 2, 4)
 
 	// When
 	wait, ok, err := b.Allow(context.Background(), 3)
@@ -86,15 +86,15 @@ func TestTokenBucket_Allow_ReturnsNoErrorNotOKWhenTokensAreExhausted(t *testing.
 	// Then
 	assert.NoError(t, err)
 	assert.False(t, ok)
-	assert.Zero(t, wait)
+	assert.EqualValues(t, 2, wait)
 }
 
-func TestTokenBucket_Allow_ReturnsNoErrorAndZeroWhenBucketHasTokens(t *testing.T) {
+func TestFixedWindow_Allow_ReturnsNoErrorAndZeroWhenBucketHasTokens(t *testing.T) {
 	// Given
 	startTime := time.Date(2022, time.Month(1), 11, 0, 0, 1, 0, time.UTC)
 	c := clock.NewMock()
 	c.Set(startTime)
-	b := NewTokenBucket(c, 2, 4)
+	b := NewFixedWindow(c, 2, 4)
 
 	// When
 	wait, ok, err := b.Allow(context.Background(), 3)
@@ -110,7 +110,7 @@ func TestTokenBucket_Allow_ReturnsNoErrorAndZeroWhenBucketHasTokens(t *testing.T
 	// Then
 	assert.NoError(t, err)
 	assert.False(t, ok)
-	assert.Zero(t, wait)
+	assert.EqualValues(t, 2, wait)
 
 	// When
 	c.Set(startTime.Add(1 * time.Second))

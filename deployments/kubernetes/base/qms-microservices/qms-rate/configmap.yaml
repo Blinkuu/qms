@@ -21,9 +21,9 @@ data:
         - namespace: namespace1
           resource: resource1
           strategy:
-            algorithm: token-bucket
-            unit: minute
-            requests_per_unit: 120
+            algorithm: fixed-window
+            unit: second
+            requests_per_unit: 25
         - namespace: namespace2
           resource: resource2
           strategy:
