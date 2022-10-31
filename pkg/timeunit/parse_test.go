@@ -3,6 +3,7 @@ package timeunit
 import (
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -14,7 +15,7 @@ func TestParse(t *testing.T) {
 	tests := []struct {
 		name    string
 		args    args
-		want    Unit
+		want    time.Duration
 		wantErr assert.ErrorAssertionFunc
 	}{
 		{
@@ -22,7 +23,7 @@ func TestParse(t *testing.T) {
 			args: args{
 				unit: "second",
 			},
-			want:    Second,
+			want:    time.Second,
 			wantErr: assert.NoError,
 		},
 		{
@@ -30,7 +31,7 @@ func TestParse(t *testing.T) {
 			args: args{
 				unit: "minute",
 			},
-			want:    Minute,
+			want:    time.Minute,
 			wantErr: assert.NoError,
 		},
 		{
@@ -38,7 +39,7 @@ func TestParse(t *testing.T) {
 			args: args{
 				unit: "hour",
 			},
-			want:    Hour,
+			want:    time.Hour,
 			wantErr: assert.NoError,
 		},
 		{
@@ -46,7 +47,7 @@ func TestParse(t *testing.T) {
 			args: args{
 				unit: "day",
 			},
-			want:    Day,
+			want:    24 * time.Hour,
 			wantErr: assert.NoError,
 		},
 		{
@@ -54,7 +55,7 @@ func TestParse(t *testing.T) {
 			args: args{
 				unit: "SECOND",
 			},
-			want:    Unit(0),
+			want:    0,
 			wantErr: assert.Error,
 		},
 		{
@@ -62,7 +63,7 @@ func TestParse(t *testing.T) {
 			args: args{
 				unit: "MINUTE",
 			},
-			want:    Unit(0),
+			want:    0,
 			wantErr: assert.Error,
 		},
 		{
@@ -70,7 +71,7 @@ func TestParse(t *testing.T) {
 			args: args{
 				unit: "HOUR",
 			},
-			want:    Unit(0),
+			want:    0,
 			wantErr: assert.Error,
 		},
 		{
@@ -78,7 +79,7 @@ func TestParse(t *testing.T) {
 			args: args{
 				unit: "DAY",
 			},
-			want:    Unit(0),
+			want:    0,
 			wantErr: assert.Error,
 		},
 		{
@@ -86,7 +87,7 @@ func TestParse(t *testing.T) {
 			args: args{
 				unit: "SeCoNd",
 			},
-			want:    Unit(0),
+			want:    0,
 			wantErr: assert.Error,
 		},
 		{
@@ -94,7 +95,7 @@ func TestParse(t *testing.T) {
 			args: args{
 				unit: "MiNuTe",
 			},
-			want:    Unit(0),
+			want:    0,
 			wantErr: assert.Error,
 		},
 		{
@@ -102,7 +103,7 @@ func TestParse(t *testing.T) {
 			args: args{
 				unit: "HoUr",
 			},
-			want:    Unit(0),
+			want:    0,
 			wantErr: assert.Error,
 		},
 		{
@@ -110,7 +111,7 @@ func TestParse(t *testing.T) {
 			args: args{
 				unit: "DaY",
 			},
-			want:    Unit(0),
+			want:    0,
 			wantErr: assert.Error,
 		},
 	}

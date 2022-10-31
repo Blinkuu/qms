@@ -3,9 +3,10 @@ import http from "k6/http";
 
 const requestTotalCounter = new Counter("request_total")
 const requestTotalFailureCounter = new Counter("request_total_failure")
+const requestAllowedTotalCounter = new Counter("request_allowed_total")
 
 export default function () {
-    const url = `http://${__ENV.ADDR}/api/v1/allow`;
+    const url = `http://${__ENV.QMS_ADDR}/api/v1/allow`;
     const payload = JSON.stringify({
         namespace: "namespace1",
         resource: "resource1",
@@ -27,8 +28,8 @@ export default function () {
     const parsedRes = res.json();
     if (parsedRes.status == 1001) {
         if (parsedRes.result.ok && parsedRes.result.wait_time == 0) {
-            hit_counter.add(1);
-            const targetUrl = "http://localhost:8080/api/v1/ping";
+            requestAllowedTotalCounter.add(1)
+            const targetUrl = `http://${__ENV.SUT_ADDR}/api/v1/ping`;
             http.get(targetUrl)
         }
     }
