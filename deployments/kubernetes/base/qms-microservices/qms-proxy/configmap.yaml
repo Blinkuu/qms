@@ -12,11 +12,11 @@ data:
 
     memberlist:
       join_addresses:
-        - qms-proxy.default.svc.cluster.local
+        - qms-proxy-gossip.default.svc.cluster.local
 
     proxy:
       rate_addresses:
-        - dnssrv+qms-rate.default.svc.cluster.local
+        - dnssrv+qms-rate-http.default.svc.cluster.local
       alloc_lb_strategy: round-robin
       alloc_addresses:
-        - dnssrv+qms-alloc.default.svc.cluster.local
+        - dnssrv+qms-alloc-http.default.svc.cluster.local

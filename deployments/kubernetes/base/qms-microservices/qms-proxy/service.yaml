@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: qms-proxy
+  name: qms-proxy-http
 spec:
   clusterIP: None
   selector:
@@ -11,6 +11,16 @@ spec:
       protocol: TCP
       port: 6789
       targetPort: http
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: qms-proxy-gossip
+spec:
+  clusterIP: None
+  selector:
+    app: qms-proxy
+  ports:
     - name: gossip
       protocol: TCP
       port: 7946
