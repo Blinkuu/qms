@@ -6,11 +6,30 @@ spec:
   clusterIP: None
   selector:
     app: qms-rate
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: qms-rate-http
+spec:
+  clusterIP: None
+  selector:
+    app: qms-rate
   ports:
     - name: http
       protocol: TCP
       port: 6789
       targetPort: http
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: qms-rate-gossip
+spec:
+  clusterIP: None
+  selector:
+    app: qms-rate
+  ports:
     - name: gossip
       protocol: TCP
       port: 7946

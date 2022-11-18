@@ -39,37 +39,21 @@ spec:
           volumeMounts:
             - name: qms-config
               mountPath: /app/configs
-            - name: qms-volume
+            - name: qms-data
               mountPath: /qms/data/raft
       volumes:
         - name: qms-config
           configMap:
             name: qms-config
-        - name: qms-volume
+        - name: qms-data
           persistentVolumeClaim:
-            claimName: qms-pvc
----
-apiVersion: v1
-kind: PersistentVolume
-metadata:
-  name: qms-pv
-spec:
-  volumeMode: Filesystem
-  accessModes: [ "ReadWriteMany" ]
-  persistentVolumeReclaimPolicy: Delete
-  storageClassName: "hostpath"
-  hostPath:
-    path: /tmp/k8s/qms-pv
-  capacity:
-    storage: 15Gi
----
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: qms-pvc
-spec:
-  volumeName: qms-pv
-  accessModes: [ "ReadWriteMany" ]
-  resources:
-    requests:
-      storage: 15Gi
+            claimName: qms-data
+  volumeClaimTemplates:
+    - metadata:
+        name: qms-data
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 20Gi

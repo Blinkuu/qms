@@ -119,12 +119,6 @@ func (s *Service) run(ctx context.Context) error {
 	for {
 		select {
 		case <-tickerChan:
-			//addrs, err := s.discoverMembers(ctx, s.cfg.JoinAddresses)
-			//if err != nil {
-			//	s.logger.Warn("failed to discover members: %w", err)
-			//	continue
-			//}
-
 			reached, err := s.memberlist.Join(s.cfg.JoinAddresses)
 			if err == nil {
 				s.logger.Info("re-joined memberlist cluster", "reached_nodes", reached)
@@ -177,19 +171,15 @@ func (s *Service) joinMembersOnStartup(ctx context.Context) bool {
 	var lastErr error
 
 	for bo.Ongoing() {
-		if len(s.cfg.JoinAddresses) > 0 {
-			reached, err := s.memberlist.Join(s.cfg.JoinAddresses) // err is only returned if reached==0.
-			if err == nil {
-				s.logger.Info("joining memberlist cluster succeeded", "reached_nodes", reached, "elapsed_time", time.Since(startTime))
+		reached, err := s.memberlist.Join(s.cfg.JoinAddresses) // err is only returned if reached==0.
+		if err == nil {
+			s.logger.Info("joining memberlist cluster succeeded", "reached_nodes", reached, "elapsed_time", time.Since(startTime))
 
-				return true
-			}
-
-			s.logger.Warn("joining memberlist cluster: failed to reach any nodes", "retries", bo.NumRetries(), "err", err)
-			lastErr = err
-		} else {
-			s.logger.Warn("joining memberlist cluster: found no nodes to join", "retries", bo.NumRetries())
+			return true
 		}
+
+		s.logger.Warn("failed to reach any nodes", "retries", bo.NumRetries(), "err", err)
+		lastErr = err
 
 		bo.Wait()
 	}

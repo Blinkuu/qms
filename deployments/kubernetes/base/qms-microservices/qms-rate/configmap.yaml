@@ -12,7 +12,7 @@ data:
 
     memberlist:
       join_addresses:
-        - qms-rate.default.svc.cluster.local
+        - qms-rate-gossip.default.svc.cluster.local
     
     rate:
       storage:

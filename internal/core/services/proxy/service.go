@@ -212,17 +212,12 @@ func (s *Service) fetchMembers(discoverAddrs []string) ([]domain.Instance, error
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
 
-	instances, err := s.discoverer.Discover(ctx, discoverAddrs)
+	addresses, err := s.discoverer.Discover(ctx, discoverAddrs)
 	if err != nil {
 		return nil, fmt.Errorf("failed to discover: %w", err)
 	}
 
-	addrs := make([]string, 0, len(instances))
-	for _, instance := range instances {
-		addrs = append(addrs, net.JoinHostPort(instance.Host, strconv.Itoa(instance.HTTPPort)))
-	}
-
-	members, err := s.memberlistClient.Members(ctx, addrs)
+	members, err := s.memberlistClient.Members(ctx, addresses)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get members: %w", err)
 	}

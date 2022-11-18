@@ -5,5 +5,5 @@ import (
 )
 
 type Discoverer interface {
-	Discover(ctx context.Context, serviceNames []string) ([]Instance, error)
+	Discover(ctx context.Context, serviceNames []string) ([]string, error)
 }

@@ -1,10 +1,11 @@
 apiVersion: apps/v1
-kind: Deployment
+kind: StatefulSet
 metadata:
   name: qms-rate
   labels:
     app: qms-rate
 spec:
+  serviceName: qms-rate
   replicas: 1
   selector:
     matchLabels:
@@ -33,7 +34,21 @@ spec:
           volumeMounts:
             - name: qms-rate-config
               mountPath: /app/configs
+            - name: qms-rate-data
+              mountPath: /qms/data/raft
       volumes:
         - name: qms-rate-config
           configMap:
             name: qms-rate-config
+        - name: qms-rate-data
+          persistentVolumeClaim:
+            claimName: qms-rate-data
+  volumeClaimTemplates:
+    - metadata:
+        name: qms-rate-data
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 10Gi

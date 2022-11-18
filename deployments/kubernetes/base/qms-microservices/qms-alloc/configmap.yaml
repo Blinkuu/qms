@@ -12,7 +12,7 @@ data:
 
     memberlist:
       join_addresses:
-        - qms-alloc.default.svc.cluster.local
+        - qms-alloc-gossip.default.svc.cluster.local
 
     alloc:
       storage:
