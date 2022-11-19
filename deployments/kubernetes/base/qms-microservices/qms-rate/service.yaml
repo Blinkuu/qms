@@ -3,6 +3,7 @@ kind: Service
 metadata:
   name: qms-rate
 spec:
+  publishNotReadyAddresses: true
   clusterIP: None
   selector:
     app: qms-rate
@@ -26,6 +27,7 @@ kind: Service
 metadata:
   name: qms-rate-gossip
 spec:
+  publishNotReadyAddresses: true
   clusterIP: None
   selector:
     app: qms-rate

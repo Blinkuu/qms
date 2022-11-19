@@ -72,7 +72,6 @@ func NewService(cfg Config, logger log.Logger, discoverer cloud.Discoverer, even
 		memberlist:   list,
 	}
 
-	// TODO: Consider starting CORE services before the rest and AwaitRunning!!!
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	ok := s.joinMembersOnStartup(ctx)

@@ -33,6 +33,18 @@ spec:
           volumeMounts:
             - name: qms-proxy-config
               mountPath: /app/configs
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 60
+            periodSeconds: 1
       volumes:
         - name: qms-proxy-config
           configMap:
