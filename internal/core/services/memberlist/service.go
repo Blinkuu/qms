@@ -3,44 +3,23 @@ package memberlist
 import (
 	"context"
 	"errors"
-	"flag"
 	"fmt"
 	"os"
 	"strings"
 	"time"
 
 	"github.com/grafana/dskit/backoff"
-	"github.com/grafana/dskit/flagext"
 	"github.com/grafana/dskit/services"
 	"github.com/hashicorp/memberlist"
 
 	"github.com/Blinkuu/qms/internal/core/domain"
 	"github.com/Blinkuu/qms/pkg/cloud"
 	"github.com/Blinkuu/qms/pkg/log"
-	"github.com/Blinkuu/qms/pkg/strutil"
 )
 
 const (
 	ServiceName = "memberlist"
 )
-
-type Config struct {
-	JoinAddresses  flagext.StringSlice `yaml:"join_addresses"`
-	RejoinInterval time.Duration       `yaml:"rejoin_interval"`
-	MinJoinBackoff time.Duration       `yaml:"min_join_backoff" `
-	MaxJoinBackoff time.Duration       `yaml:"max_join_backoff"`
-	MaxJoinRetries int                 `yaml:"max_join_retries"`
-	LeaveTimeout   time.Duration       `yaml:"leave_timeout"`
-}
-
-func (c *Config) RegisterFlagsWithPrefix(f *flag.FlagSet, prefix string) {
-	f.Var(&c.JoinAddresses, strutil.WithPrefixOrDefault(prefix, "join_addresses"), "")
-	f.DurationVar(&c.RejoinInterval, strutil.WithPrefixOrDefault(prefix, "rejoin_interval"), 0, "")
-	f.DurationVar(&c.MinJoinBackoff, strutil.WithPrefixOrDefault(prefix, "min_join_backoff"), 1*time.Second, "")
-	f.DurationVar(&c.MaxJoinBackoff, strutil.WithPrefixOrDefault(prefix, "max_join_backoff"), 30*time.Second, "")
-	f.IntVar(&c.MaxJoinRetries, strutil.WithPrefixOrDefault(prefix, "max_join_retries"), 10, "")
-	f.DurationVar(&c.LeaveTimeout, strutil.WithPrefixOrDefault(prefix, "leave_timeout"), 10*time.Second, "")
-}
 
 type Service struct {
 	services.NamedService
@@ -59,6 +38,10 @@ func NewService(cfg Config, logger log.Logger, discoverer cloud.Discoverer, even
 	listCfg := memberlist.DefaultLANConfig()
 	listCfg.Events = eventDelegateAdapter{EventDelegate: eventDelegate}
 	listCfg.Name = newMember(service, hostname, listCfg.BindPort, httpPort).String()
+	listCfg.BindAddr = cfg.BindAddress
+	listCfg.BindPort = cfg.BindPort
+	listCfg.AdvertiseAddr = cfg.AdvertiseAddress
+	listCfg.AdvertisePort = cfg.AdvertisePort
 	list, err := memberlist.Create(listCfg)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create memberlist: %w", err)

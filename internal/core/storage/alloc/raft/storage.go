@@ -61,18 +61,18 @@ func NewStorage(cfg Config, logger log.Logger, memberlist ports.MemberlistServic
 		cfg.ReplicaID = replicaID + 1
 	}
 
-	if cfg.HostFromHostname {
+	if cfg.BindAddressFromHostname {
 		hostname, err := os.Hostname()
 		if err != nil {
 			return nil, fmt.Errorf("failed to get hostname: %w", err)
 		}
 
-		cfg.Host = fmt.Sprintf("%s.%s.default.svc.cluster.local", hostname, trimAfterSubstr(hostname, "-"))
+		cfg.BindAddress = fmt.Sprintf("%s.%s.default.svc.cluster.local", hostname, trimAfterSubstr(hostname, "-"))
 	}
 
 	var initialMembers map[uint64]string
 	joined := false
-	raftAddr := net.JoinHostPort(cfg.Host, strconv.Itoa(cfg.Port))
+	raftAddr := net.JoinHostPort(cfg.BindAddress, strconv.Itoa(cfg.BindPort))
 	alreadyMember, err := join(context.Background(), logger, memberlist, cfg.ReplicaID, raftAddr)
 	if err == nil {
 		if !alreadyMember {
