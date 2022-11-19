@@ -121,7 +121,7 @@ func loadConfig() (app.Config, error) {
 	fs := flag.NewFlagSet("", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
 
-	fs.StringVar(&configFile, configFileOption, "./configs/config.yaml", "")
+	fs.StringVar(&configFile, configFileOption, "./configs/basic/config.yaml", "")
 	fs.BoolVar(&configExpandEnv, configExpandEnvOption, false, "")
 
 	args := os.Args[1:]

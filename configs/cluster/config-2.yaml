@@ -2,24 +2,28 @@ target: all
 otel_collector_target: grafana-agent-traces:4317
 
 server:
-  http_port: 6789
+  http_port: 6002
 
 memberlist:
+  bind_port: 10002
   join_addresses:
-    - 127.0.0.1:7946
+    - 127.0.0.1:10000
+    - 127.0.0.1:10001
+    - 127.0.0.1:10002
 
 proxy:
   alloc_addresses:
-    - 127.0.0.1:6789
+    - 127.0.0.1:6000
+    - 127.0.0.1:6001
+    - 127.0.0.1:6002
   rate_addresses:
-    - 127.0.0.1:6789
+    - 127.0.0.1:6000
+    - 127.0.0.1:6001
+    - 127.0.0.1:6002
 
 alloc:
   storage:
-    backend: raft
-    raft:
-      replica_id: 1
-
+    backend: memory
   quotas:
     - namespace: namespace1
       resource: resource1
@@ -36,9 +40,3 @@ rate:
         algorithm: token-bucket
         unit: minute
         requests_per_unit: 120
-    - namespace: namespace2
-      resource: resource2
-      strategy:
-        algorithm: token-bucket
-        unit: second
-        requests_per_unit: 10

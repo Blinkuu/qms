@@ -1,0 +1,42 @@
+target: all
+otel_collector_target: grafana-agent-traces:4317
+
+server:
+  http_port: 6789
+
+memberlist:
+  join_addresses:
+    - 127.0.0.1:7946
+
+proxy:
+  alloc_addresses:
+    - 127.0.0.1:6789
+  rate_addresses:
+    - 127.0.0.1:6789
+
+alloc:
+  storage:
+    backend: memory
+
+  quotas:
+    - namespace: namespace1
+      resource: resource1
+      strategy:
+        capacity: 10
+
+rate:
+  storage:
+    backend: memory
+  quotas:
+    - namespace: namespace1
+      resource: resource1
+      strategy:
+        algorithm: token-bucket
+        unit: minute
+        requests_per_unit: 120
+    - namespace: namespace2
+      resource: resource2
+      strategy:
+        algorithm: token-bucket
+        unit: second
+        requests_per_unit: 10
