@@ -73,10 +73,8 @@ func NewStorage(cfg Config, logger log.Logger, memberlist ports.MemberlistServic
 	var initialMembers map[uint64]string
 	joined := false
 	raftAddr := net.JoinHostPort(cfg.Host, strconv.Itoa(cfg.Port))
-	logger.Info("trying to join raft cluster")
 	alreadyMember, err := join(context.Background(), logger, memberlist, cfg.ReplicaID, raftAddr)
 	if err == nil {
-		logger.Info("successfully joined raft cluster")
 		if !alreadyMember {
 			joined = true
 		}
@@ -99,13 +97,11 @@ func NewStorage(cfg Config, logger log.Logger, memberlist ports.MemberlistServic
 createNodeHost:
 	// raftDir: dir/raft_node_nodeId
 	// dataDir: dir/data_node_nodeId
-	logger.Info("creating raft data and dirs", "dir", cfg.Dir)
 	raftDir, dataDir, err := createRaftAndDataDirs(cfg.Dir, cfg.ReplicaID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create raft and data dirs: %w", err)
 	}
 
-	logger.Infof("raftAddr=%s", raftAddr)
 	nodeHostCfg := newNodeHostConfig(cfg.DeploymentID, raftDir, raftAddr)
 	nh, err := dragonboat.NewNodeHost(nodeHostCfg)
 	if err != nil {
@@ -705,9 +701,15 @@ func newRaftConfig(replicaID, shardID uint64) config.Config {
 }
 
 func join(ctx context.Context, logger log.Logger, memberlist ports.MemberlistService, replicaID uint64, raftAddr string) (bool, error) {
-	members, err := memberlist.Members(ctx)
-	if err != nil {
-		return false, fmt.Errorf("failed to get members: %w", err)
+	cli := &http.Client{
+		Transport: otelhttp.NewTransport(http.DefaultTransport),
+		Timeout:   1 * time.Second,
+	}
+
+	cfg := backoff.Config{
+		MinBackoff: 1 * time.Second,
+		MaxBackoff: 5 * time.Second,
+		MaxRetries: 10,
 	}
 
 	hostname, err := os.Hostname()
@@ -715,30 +717,30 @@ func join(ctx context.Context, logger log.Logger, memberlist ports.MemberlistSer
 		return false, fmt.Errorf("failed to get hostname: %w", err)
 	}
 
-	var filteredMembers []domain.Instance
-	for _, member := range members {
-		if member.Hostname != hostname {
-			filteredMembers = append(filteredMembers, member)
-		}
-	}
-
-	if len(filteredMembers) < 1 {
-		return false, errors.New("no members to join")
-	}
-
-	cli := &http.Client{
-		Transport: otelhttp.NewTransport(http.DefaultTransport),
-		Timeout:   1 * time.Second,
-	}
-
-	cfg := backoff.Config{
-		MinBackoff: 0,
-		MaxBackoff: 2 * time.Second,
-		MaxRetries: 10,
-	}
-
 	bo := backoff.New(ctx, cfg)
 	for bo.Ongoing() {
+		bo.Wait()
+
+		members, err := memberlist.Members(ctx)
+		if err != nil {
+			logger.Warn("failed to get members", "err", err)
+
+			continue
+		}
+
+		var filteredMembers []domain.Instance
+		for _, member := range members {
+			if member.Hostname != hostname {
+				filteredMembers = append(filteredMembers, member)
+			}
+		}
+
+		if len(filteredMembers) < 1 {
+			logger.Warn("no members to join")
+
+			continue
+		}
+
 		for _, member := range filteredMembers {
 			addr := net.JoinHostPort(member.Host, strconv.Itoa(member.HTTPPort))
 			url := fmt.Sprintf("http://%s/api/v1/internal/raft/join", addr)
@@ -783,8 +785,6 @@ func join(ctx context.Context, logger log.Logger, memberlist ports.MemberlistSer
 
 			return resBody.Result.AlreadyMember, nil
 		}
-
-		bo.Wait()
 	}
 
 	return false, errors.New("all attempts failed")

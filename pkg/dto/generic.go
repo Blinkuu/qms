@@ -1,7 +1,8 @@
 package dto
 
 const (
-	StatusOK = 1001
+	StatusInternalError = 0
+	StatusOK            = 1001
 )
 
 const (

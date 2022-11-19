@@ -132,16 +132,14 @@ func (a *App) Run(ctx context.Context) error {
 	}
 	a.servicesManager.AddListener(services.NewManagerListener(healthy, stopped, failed))
 
-	if err := a.servicesManager.StartAsync(ctx); err != nil {
-		return fmt.Errorf("failed to start services: %w", err)
-	}
-
-	if err := a.servicesManager.AwaitHealthy(ctx); err != nil {
-		return fmt.Errorf("failed to await healthy: %w", err)
-	}
-
 	pingHandler := handlers.NewPingHTTPHandler(a.ping)
 	a.server.HTTP.Handle("/ping", pingHandler.Ping())
+
+	readyHandler := handlers.NewReadyHTTPHandler(svcs...)
+	a.server.HTTP.Handle("/ready", readyHandler.Ready()).Methods(http.MethodGet)
+
+	healthHandler := handlers.NewHealthHTTPHandler(svcs...)
+	a.server.HTTP.Handle("/healthz", healthHandler.Health()).Methods(http.MethodGet)
 
 	memberlistHandler := handlers.NewMemberlistHTTPHandler(a.memberlist)
 	a.server.HTTP.Handle("/memberlist", memberlistHandler.Memberlist()).Methods(http.MethodGet)
@@ -175,6 +173,10 @@ func (a *App) Run(ctx context.Context) error {
 				v1InternalApiRouter.Handle("/raft/exit", raftHandler.Exit()).Methods(http.MethodPost)
 			}
 		}
+	}
+
+	if err := a.servicesManager.StartAsync(ctx); err != nil {
+		return fmt.Errorf("failed to start services: %w", err)
 	}
 
 	err = a.servicesManager.AwaitStopped(context.Background())

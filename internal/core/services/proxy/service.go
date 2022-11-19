@@ -169,7 +169,7 @@ func (s *Service) start(_ context.Context) error {
 func (s *Service) run(ctx context.Context) error {
 	s.logger.Info("running proxy service")
 
-	ticker := time.NewTicker(1 * time.Second)
+	ticker := time.NewTicker(10 * time.Second)
 	defer ticker.Stop()
 
 	for {

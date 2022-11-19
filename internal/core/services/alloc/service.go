@@ -23,8 +23,10 @@ const (
 
 type Service struct {
 	services.NamedService
-	logger  log.Logger
-	storage alloc.Storage
+	cfg        Config
+	logger     log.Logger
+	memberlist ports.MemberlistService
+	storage    alloc.Storage
 }
 
 func NewService(cfg Config, logger log.Logger, memberlist ports.MemberlistService) (*Service, error) {
@@ -35,7 +37,9 @@ func NewService(cfg Config, logger log.Logger, memberlist ports.MemberlistServic
 
 	s := &Service{
 		NamedService: nil,
+		cfg:          cfg,
 		logger:       logger,
+		memberlist:   memberlist,
 		storage:      st,
 	}
 
@@ -137,6 +141,7 @@ func (s *Service) stop(err error) error {
 
 func newStorageFromConfig(cfg Config, logger log.Logger, memberlist ports.MemberlistService) (alloc.Storage, error) {
 	var st alloc.Storage
+
 	switch cfg.Storage.Backend {
 	case alloc.Memory:
 		st = memory.NewStorage()

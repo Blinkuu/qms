@@ -3,6 +3,7 @@ kind: Service
 metadata:
   name: qms-alloc
 spec:
+  publishNotReadyAddresses: true
   clusterIP: None
   selector:
     app: qms-alloc
@@ -26,6 +27,7 @@ kind: Service
 metadata:
   name: qms-alloc-gossip
 spec:
+  publishNotReadyAddresses: true
   clusterIP: None
   selector:
     app: qms-alloc
