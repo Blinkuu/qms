@@ -6,7 +6,7 @@ metadata:
     app: qms-alloc
 spec:
   serviceName: qms-alloc
-  replicas: 1
+  replicas: 3
   selector:
     matchLabels:
       app: qms-alloc
@@ -21,6 +21,7 @@ spec:
       containers:
         - name: qms-alloc
           image: qms:latest
+          imagePullPolicy: IfNotPresent
           args:
             - "-config.file=/app/configs/config.yaml"
             - "-config.expand-env=true"
