@@ -6,7 +6,7 @@ metadata:
     app: qms-rate
 spec:
   serviceName: qms-rate
-  replicas: 1
+  replicas: 3
   selector:
     matchLabels:
       app: qms-rate
@@ -21,6 +21,7 @@ spec:
       containers:
         - name: qms-rate
           image: qms:latest
+          imagePullPolicy: IfNotPresent
           args:
             - "-config.file=/app/configs/config.yaml"
             - "-config.expand-env=true"

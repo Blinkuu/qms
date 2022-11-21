@@ -18,4 +18,4 @@ replicas:
     count: 3
   # Monolith mode
   - name: qms
-    count: 3
+    count: 4
