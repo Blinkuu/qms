@@ -226,73 +226,31 @@ func (s *Service) fetchMembers(discoverAddrs []string) ([]domain.Instance, error
 }
 
 func (s *Service) updateRateMembersAndHashRing(newMembers []domain.Instance) {
+	s.logger.Info("updating rate hash ring", "new_members", fmt.Sprintf("%+v", newMembers))
+
+	nodes := make([]string, 0, len(newMembers))
+	for _, member := range newMembers {
+		nodes = append(nodes, fmt.Sprintf("%s:%d", member.Host, member.HTTPPort))
+	}
+
 	s.rateMu.Lock()
 	defer s.rateMu.Unlock()
 
-	oldMembers := s.rateMembers
-	diff := diffMembers(oldMembers, newMembers)
-
-	hashRing := s.rateHashRing
-	for _, added := range diff.added {
-		hashRing = hashRing.AddWeightedNode(fmt.Sprintf("%s:%d", added.Host, added.HTTPPort), 1)
-	}
-
-	for _, removed := range diff.removed {
-		hashRing = hashRing.RemoveNode(fmt.Sprintf("%s:%d", removed.Host, removed.HTTPPort))
-	}
-
 	s.rateMembers = newMembers
-	s.rateHashRing = hashRing
+	s.rateHashRing = hashring.New(nodes)
 }
 
 func (s *Service) updateAllocMembersAndHashRing(newMembers []domain.Instance) {
+	s.logger.Info("updating alloc hash ring", "new_members", fmt.Sprintf("%+v", newMembers))
+
+	nodes := make([]string, 0, len(newMembers))
+	for _, member := range newMembers {
+		nodes = append(nodes, fmt.Sprintf("%s:%d", member.Host, member.HTTPPort))
+	}
+
 	s.allocMu.Lock()
 	defer s.allocMu.Unlock()
 
-	oldMembers := s.allocMembers
-	diff := diffMembers(oldMembers, newMembers)
-
-	hashRing := s.allocHashRing
-	for _, added := range diff.added {
-		hashRing = hashRing.AddWeightedNode(fmt.Sprintf("%s:%d", added.Host, added.HTTPPort), 1)
-	}
-
-	for _, removed := range diff.removed {
-		hashRing = hashRing.RemoveNode(fmt.Sprintf("%s:%d", removed.Host, removed.HTTPPort))
-	}
-
 	s.allocMembers = newMembers
-	s.allocHashRing = hashRing
-}
-
-type membersDiff struct {
-	added   []domain.Instance
-	removed []domain.Instance
-}
-
-func diffMembers(oldMembers, newMembers []domain.Instance) membersDiff {
-	newMembersSet := make(map[domain.Instance]struct{}, len(newMembers))
-	for _, newMember := range newMembers {
-		newMembersSet[newMember] = struct{}{}
-	}
-
-	oldMembersSet := make(map[domain.Instance]struct{}, len(oldMembers))
-	for _, oldMember := range oldMembers {
-		oldMembersSet[oldMember] = struct{}{}
-	}
-
-	diff := membersDiff{}
-	for _, oldMember := range oldMembers {
-		if _, found := newMembersSet[oldMember]; !found {
-			diff.removed = append(diff.removed, oldMember)
-		}
-	}
-
-	for _, newMember := range newMembers {
-		if _, found := oldMembersSet[newMember]; !found {
-			diff.added = append(diff.added, newMember)
-		}
-	}
-
-	return diff
+	s.allocHashRing = hashring.New(nodes)
 }
