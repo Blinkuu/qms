@@ -4,15 +4,18 @@ metadata:
   name: sut
   labels:
     app: sut
+    name: sut
 spec:
   replicas: 1
   selector:
     matchLabels:
       app: sut
+      name: sut
   template:
     metadata:
       labels:
         app: sut
+        name: sut
       annotations:
         prometheus.io/scrape: 'true'
         prometheus.io/port: '8080'
