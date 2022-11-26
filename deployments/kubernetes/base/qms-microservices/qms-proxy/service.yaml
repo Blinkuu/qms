@@ -5,7 +5,8 @@ metadata:
 spec:
   clusterIP: None
   selector:
-    app: qms-proxy
+    app: qms
+    name: qms-proxy
   ports:
     - name: http
       protocol: TCP
@@ -20,7 +21,8 @@ spec:
   publishNotReadyAddresses: true
   clusterIP: None
   selector:
-    app: qms-proxy
+    app: qms
+    name: qms-proxy
   ports:
     - name: gossip
       protocol: TCP

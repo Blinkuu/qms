@@ -1,5 +1,6 @@
 resources:
-  - daemonset.yaml
-  - deployment.yaml
-  - statefulset.yaml
+  - ../../../base/grafana-agent
+  - secrets.yaml
+
+patchesStrategicMerge:
   - configmap.yaml

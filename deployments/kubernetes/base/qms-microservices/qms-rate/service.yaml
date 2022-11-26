@@ -6,7 +6,8 @@ spec:
   publishNotReadyAddresses: true
   clusterIP: None
   selector:
-    app: qms-rate
+    app: qms
+    name: qms-rate
 ---
 apiVersion: v1
 kind: Service
@@ -15,7 +16,8 @@ metadata:
 spec:
   clusterIP: None
   selector:
-    app: qms-rate
+    app: qms
+    name: qms-rate
   ports:
     - name: http
       protocol: TCP
@@ -30,7 +32,8 @@ spec:
   publishNotReadyAddresses: true
   clusterIP: None
   selector:
-    app: qms-rate
+    app: qms
+    name: qms-rate
   ports:
     - name: gossip
       protocol: TCP

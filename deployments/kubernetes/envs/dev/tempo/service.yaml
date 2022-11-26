@@ -1,0 +1,23 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: tempo
+spec:
+  selector:
+    name: tempo
+  ports:
+    - name: tempo-http
+      port: 3200
+      targetPort: tempo-http
+    - name: jaeger-http
+      port: 14268
+      targetPort: jaeger-http
+    - name: otlp-http
+      port: 4318
+      targetPort: otlp-http
+    - name: otlp-grpc
+      port: 4317
+      targetPort: otlp-grpc
+    - name: zipkin-grpc
+      port: 9411
+      targetPort: zipkin-grpc

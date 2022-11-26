@@ -3,23 +3,26 @@ kind: Deployment
 metadata:
   name: qms-proxy
   labels:
-    app: qms-proxy
+    app: qms
+    name: qms-proxy
 spec:
   replicas: 3
   selector:
     matchLabels:
-      app: qms-proxy
+      app: qms
+      name: qms-proxy
   template:
     metadata:
       labels:
-        app: qms-proxy
+        app: qms
+        name: qms-proxy
       annotations:
         prometheus.io/scrape: 'true'
         prometheus.io/port: '6789'
     spec:
       containers:
         - name: qms-proxy
-          image: qms:latest
+          image: blinku/qms:latest
           imagePullPolicy: IfNotPresent
           args:
             - "-config.file=/app/configs/config.yaml"

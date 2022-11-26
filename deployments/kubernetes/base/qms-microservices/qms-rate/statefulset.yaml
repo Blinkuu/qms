@@ -3,24 +3,27 @@ kind: StatefulSet
 metadata:
   name: qms-rate
   labels:
-    app: qms-rate
+    app: qms
+    name: qms-rate
 spec:
   serviceName: qms-rate
   replicas: 3
   selector:
     matchLabels:
-      app: qms-rate
+      app: qms
+      name: qms-rate
   template:
     metadata:
       labels:
-        app: qms-rate
+        app: qms
+        name: qms-rate
       annotations:
         prometheus.io/scrape: 'true'
         prometheus.io/port: '6789'
     spec:
       containers:
         - name: qms-rate
-          image: qms:latest
+          image: blinku/qms:latest
           imagePullPolicy: IfNotPresent
           args:
             - "-config.file=/app/configs/config.yaml"
@@ -64,4 +67,4 @@ spec:
           - ReadWriteOnce
         resources:
           requests:
-            storage: 10Gi
+            storage: 1Gi

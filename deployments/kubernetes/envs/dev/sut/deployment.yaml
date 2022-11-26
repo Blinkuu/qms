@@ -20,6 +20,7 @@ spec:
       containers:
         - name: sut
           image: sut:latest
+          imagePullPolicy: IfNotPresent
           ports:
             - name: sut-http
               containerPort: 8080

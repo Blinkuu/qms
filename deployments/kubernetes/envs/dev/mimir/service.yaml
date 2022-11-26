@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: mimir
+spec:
+  selector:
+    name: mimir
+  ports:
+    - name: http
+      port: 9009
+      targetPort: http

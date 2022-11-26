@@ -102,6 +102,7 @@ spec:
     spec:
       containers:
         - args:
+            - -config.expand-env
             - -config.file=/etc/agent/agent.yaml
             - -server.http.address=0.0.0.0:80
           command:
@@ -111,6 +112,21 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: spec.nodeName
+            - name: TRACES_REMOTE_WRITE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: grafana-agent-traces
+                  key: traces_remote_write_url
+            - name: TRACES_REMOTE_WRITE_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: grafana-agent-traces
+                  key: traces_remote_write_username
+            - name: TRACES_REMOTE_WRITE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: grafana-agent-traces
+                  key: traces_remote_write_password
           image: grafana/agent:v0.24.2
           imagePullPolicy: IfNotPresent
           name: grafana-agent-traces

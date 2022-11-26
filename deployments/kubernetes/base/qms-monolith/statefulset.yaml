@@ -4,23 +4,26 @@ metadata:
   name: qms
   labels:
     app: qms
+    name: qms-monolith
 spec:
   serviceName: qms
   replicas: 3
   selector:
     matchLabels:
       app: qms
+      name: qms-monolith
   template:
     metadata:
       labels:
         app: qms
+        name: qms-monolith
       annotations:
         prometheus.io/scrape: 'true'
         prometheus.io/port: '6789'
     spec:
       containers:
-        - name: qms
-          image: qms:latest
+        - name: qms-monolith
+          image: blinku/qms:latest
           imagePullPolicy: IfNotPresent
           args:
             - "-config.file=/app/configs/config.yaml"
@@ -69,4 +72,4 @@ spec:
           - ReadWriteOnce
         resources:
           requests:
-            storage: 20Gi
+            storage: 1Gi
