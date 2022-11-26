@@ -1,0 +1,20 @@
+resources:
+  - ../../../base/qms-microservices
+  - ../../../base/qms-monolith
+
+images:
+  - name: blinku/qms:latest
+    newName: qms
+    newTag: latest
+
+replicas:
+  # Microservices mode
+  - name: qms-proxy
+    count: 1
+  - name: qms-rate
+    count: 1
+  - name: qms-alloc
+    count: 1
+  # Monolith mode
+  - name: qms
+    count: 1

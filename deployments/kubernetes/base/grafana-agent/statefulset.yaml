@@ -74,6 +74,7 @@ spec:
     spec:
       containers:
         - args:
+            - -config.expand-env
             - -config.file=/etc/agent/agent.yaml
             - -enable-features=integrations-next
             - -server.http.address=0.0.0.0:80
@@ -84,6 +85,21 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: spec.nodeName
+            - name: METRICS_REMOTE_WRITE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: grafana-agent-metrics
+                  key: metrics_remote_write_url
+            - name: METRICS_REMOTE_WRITE_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: grafana-agent-metrics
+                  key: metrics_remote_write_username
+            - name: METRICS_REMOTE_WRITE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: grafana-agent-metrics
+                  key: metrics_remote_write_password
           image: grafana/agent:v0.24.2
           imagePullPolicy: IfNotPresent
           name: grafana-agent-metrics
@@ -95,7 +111,7 @@ spec:
               name: agent-wal
             - mountPath: /etc/agent
               name: grafana-agent-metrics
-      serviceAccount: grafana-agent-metrics
+      serviceAccountName: grafana-agent-metrics
       volumes:
         - configMap:
             name: grafana-agent-metrics

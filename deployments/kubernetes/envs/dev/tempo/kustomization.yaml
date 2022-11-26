@@ -1,3 +1,4 @@
 resources:
-  - deployment.yaml
   - configmap.yaml
+  - deployment.yaml
+  - service.yaml

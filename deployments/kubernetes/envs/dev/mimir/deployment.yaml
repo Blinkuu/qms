@@ -18,12 +18,12 @@ spec:
           args:
             - "-config.file=/etc/mimir/config.yaml"
           ports:
-            - name: mimir-http
+            - name: http
               containerPort: 9009
           readinessProbe:
             httpGet:
               path: /ready
-              port: 9009
+              port: http
             initialDelaySeconds: 10
             timeoutSeconds: 60
           volumeMounts:
@@ -33,15 +33,3 @@ spec:
         - name: mimir-config
           configMap:
             name: mimir-config
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: mimir
-spec:
-  selector:
-    name: mimir
-  ports:
-    - name: mimir-http
-      port: 9009
-      targetPort: 9009

@@ -1,4 +1,6 @@
-FROM golang:1.19
+FROM alpine:3
+
+ARG TARGETARCH
 
 WORKDIR /app/
 
