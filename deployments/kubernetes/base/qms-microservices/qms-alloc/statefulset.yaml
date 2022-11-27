@@ -21,6 +21,18 @@ spec:
         prometheus.io/scrape: 'true'
         prometheus.io/port: '6789'
     spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 1
+              podAffinityTerm:
+                topologyKey: kubernetes.io/hostname
+                labelSelector:
+                  matchExpressions:
+                    - key: name
+                      operator: In
+                      values:
+                        - qms-alloc
       containers:
         - name: qms-alloc
           image: blinku/qms:latest
