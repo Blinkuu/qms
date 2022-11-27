@@ -35,7 +35,8 @@ supports only the `memory` storage backend.
 
 Allocation quotas are commonly used to restrict the use of resources that do not have a usage rate. Common examples
 include limiting the amount of used cloud storage or instances deployed. An essential property of allocation quotas is
-that they do not reset over time and must be explicitly released when they are no longer needed.
+that they do not reset over time and must be explicitly released when they are no longer needed. The alloc component
+supports three storage backends: `memory`, `local`, and `raft`.
 
 > Warning: QMS is not production ready. This project was developed as part of my Master's Thesis and requires further
 > polishing to consider it stable.
