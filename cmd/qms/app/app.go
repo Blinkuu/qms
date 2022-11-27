@@ -133,7 +133,7 @@ func (a *App) Run(ctx context.Context) error {
 	a.servicesManager.AddListener(services.NewManagerListener(healthy, stopped, failed))
 
 	pingHandler := handlers.NewPingHTTPHandler(a.ping)
-	a.server.HTTP.Handle("/ping", pingHandler.Ping())
+	a.server.HTTP.Handle("/ping", pingHandler.Ping()).Methods(http.MethodGet)
 
 	readyHandler := handlers.NewReadyHTTPHandler(svcs...)
 	a.server.HTTP.Handle("/ready", readyHandler.Ready()).Methods(http.MethodGet)
