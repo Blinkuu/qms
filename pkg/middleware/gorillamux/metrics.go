@@ -18,7 +18,7 @@ func MetricsMiddleware(clock clock.Clock, reg prometheus.Registerer, namespace, 
 		Namespace: namespace,
 		Subsystem: subsystem,
 		Help:      "The total number of requests received",
-	}, []string{labelHTTPFlavor, labelHTTPHost, labelHTTPMethod, labelHTTPRoute, labelHTTPScheme, labelHTTPServerName, labelHTTPStatusCode})
+	}, []string{labelHTTPFlavor, labelHTTPHost, labelHTTPMethod, labelHTTPRoute, labelHTTPScheme, labelHTTPServerName, labelHTTPStatusCode, labelResult})
 
 	reqDurationSeconds := promauto.With(reg).NewHistogramVec(prometheus.HistogramOpts{
 		Name:      "request_duration_seconds",
@@ -26,7 +26,7 @@ func MetricsMiddleware(clock clock.Clock, reg prometheus.Registerer, namespace, 
 		Subsystem: subsystem,
 		Help:      "Histogram of the request duration",
 		Buckets:   prometheus.DefBuckets,
-	}, []string{labelHTTPFlavor, labelHTTPHost, labelHTTPMethod, labelHTTPRoute, labelHTTPScheme, labelHTTPServerName, labelHTTPStatusCode})
+	}, []string{labelHTTPFlavor, labelHTTPHost, labelHTTPMethod, labelHTTPRoute, labelHTTPScheme, labelHTTPServerName, labelHTTPStatusCode, labelResult})
 
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -44,6 +44,7 @@ func MetricsMiddleware(clock clock.Clock, reg prometheus.Registerer, namespace, 
 				httpSchemeFromRequest(r),
 				serverName,
 				strconv.Itoa(sw.statusCode),
+				resultFromHTTPStatusCode(sw.statusCode),
 			}
 
 			reqTotal.WithLabelValues(labelValues...).Inc()

@@ -2,12 +2,14 @@ package rate
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
 	"github.com/benbjohnson/clock"
 	"github.com/grafana/dskit/services"
 
+	"github.com/Blinkuu/qms/internal/core/storage"
 	"github.com/Blinkuu/qms/internal/core/storage/alloc"
 	"github.com/Blinkuu/qms/internal/core/storage/rate"
 	"github.com/Blinkuu/qms/internal/core/storage/rate/memory"
@@ -42,9 +44,18 @@ func NewService(cfg Config, clock clock.Clock, logger log.Logger) (*Service, err
 }
 
 func (s *Service) Allow(ctx context.Context, namespace, resource string, tokens int64) (time.Duration, bool, error) {
-	s.logger.Info("allow called", "namespace", namespace, "resource", resource, "tokens", tokens)
+	waitTime, ok, err := s.storage.Allow(ctx, namespace, resource, tokens)
+	if err != nil {
+		switch {
+		case errors.Is(err, storage.ErrNotFound):
+			return 0, false, ErrNotFound
+		default:
+		}
 
-	return s.storage.Allow(ctx, namespace, resource, tokens)
+		return 0, false, fmt.Errorf("failed to view: %w", err)
+	}
+
+	return waitTime, ok, nil
 }
 
 func (s *Service) start(_ context.Context) error {

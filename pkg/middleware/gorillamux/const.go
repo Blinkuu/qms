@@ -12,5 +12,6 @@ const (
 	labelHTTPTarget               = "http_target"
 	labelHTTPUserAgent            = "http_user_agent"
 
+	labelResult  = "result"
 	labelTraceID = "trace_id"
 )

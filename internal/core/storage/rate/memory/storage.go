@@ -10,6 +10,7 @@ import (
 
 	"github.com/benbjohnson/clock"
 
+	"github.com/Blinkuu/qms/internal/core/storage"
 	"github.com/Blinkuu/qms/internal/core/storage/rate/quota"
 	"github.com/Blinkuu/qms/pkg/timeunit"
 )
@@ -40,7 +41,7 @@ func (s *Storage) Allow(ctx context.Context, namespace, resource string, tokens 
 
 	bucket, found := s.strategies[id]
 	if !found {
-		return 0, false, fmt.Errorf("st for %s not found", id)
+		return 0, false, storage.ErrNotFound
 	}
 
 	waitTime, ok, err := bucket.Allow(ctx, tokens)
