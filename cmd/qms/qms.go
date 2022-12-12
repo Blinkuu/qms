@@ -32,7 +32,7 @@ import (
 )
 
 func main() {
-	logger := log.Must(log.NewZapLogger("qms", "info", []string{"stderr"}))
+	logger := log.Must(log.NewZapLogger("qms", "info", []string{"stdout"}))
 	defer func() {
 		err := logger.Close()
 		if err != nil && !errors.Is(err, syscall.ENOTTY) {
@@ -168,7 +168,6 @@ func setupOpenTelemetryExporter(target string) (*otlptrace.Exporter, error) {
 		ctx,
 		target,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
-		//grpc.WithBlock(),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to opentelemetry collector: %w", err)

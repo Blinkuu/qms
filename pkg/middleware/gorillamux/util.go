@@ -102,6 +102,18 @@ func httpUserAgentFromRequest(r *http.Request) string {
 	return "unknown"
 }
 
+func resultFromHTTPStatusCode(statusCode int) string {
+	if statusCode < 100 && statusCode > 599 {
+		return "unknown"
+	}
+
+	if statusCode >= 100 && statusCode < 400 {
+		return "success"
+	}
+
+	return "error"
+}
+
 func traceIDFromContext(ctx context.Context) string {
 	traceID := trace.SpanFromContext(ctx).SpanContext().TraceID()
 	if !traceID.IsValid() {

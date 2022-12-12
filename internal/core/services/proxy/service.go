@@ -66,13 +66,12 @@ func (s *Service) Allow(ctx context.Context, namespace, resource string, tokens 
 	s.rateMu.RLock()
 	defer s.rateMu.RUnlock()
 
-	id := strings.Join([]string{namespace, resource}, "_")
-	addr, ok := s.rateHashRing.GetNode(id)
-	if !ok {
-		return 0, false, fmt.Errorf("failed to get address from ring: id=%s", id)
+	addrs, err := s.hashRingLocked(namespace, resource)
+	if err != nil {
+		return 0, false, fmt.Errorf("failed to pick addresses from hash ring: %w", err)
 	}
 
-	return s.rateClient.Allow(ctx, []string{addr}, namespace, resource, tokens)
+	return s.rateClient.Allow(ctx, addrs, namespace, resource, tokens)
 }
 
 func (s *Service) View(ctx context.Context, namespace, resource string) (int64, int64, int64, error) {
@@ -152,10 +151,12 @@ func (s *Service) roundRobinLocked() []string {
 
 func (s *Service) hashRingLocked(namespace, resource string) ([]string, error) {
 	id := strings.Join([]string{namespace, resource}, "_")
-	addr, ok := s.rateHashRing.GetNode(id)
+	vNode, ok := s.rateHashRing.GetNode(id)
 	if !ok {
 		return nil, fmt.Errorf("failed to get address from ring: id=%s", id)
 	}
+
+	addr := s.trimVNodePrefix(vNode)
 
 	return []string{addr}, nil
 }
@@ -169,7 +170,7 @@ func (s *Service) start(_ context.Context) error {
 func (s *Service) run(ctx context.Context) error {
 	s.logger.Info("running proxy service")
 
-	ticker := time.NewTicker(10 * time.Second)
+	ticker := time.NewTicker(1 * time.Second)
 	defer ticker.Stop()
 
 	for {
@@ -197,14 +198,14 @@ func (s *Service) updateRings() {
 	if err != nil {
 		s.logger.Warn("failed to get rate members", "err", err)
 	} else {
-		s.updateRateMembersAndHashRing(members)
+		s.updateRateMembersAndHashRing(members, 10)
 	}
 
 	members, err = s.fetchMembers(s.cfg.AllocAddresses)
 	if err != nil {
 		s.logger.Warn("failed to get alloc members", "err", err)
 	} else {
-		s.updateAllocMembersAndHashRing(members)
+		s.updateAllocMembersAndHashRing(members, 10)
 	}
 }
 
@@ -225,74 +226,52 @@ func (s *Service) fetchMembers(discoverAddrs []string) ([]domain.Instance, error
 	return members, nil
 }
 
-func (s *Service) updateRateMembersAndHashRing(newMembers []domain.Instance) {
+func (s *Service) updateRateMembersAndHashRing(newMembers []domain.Instance, numVNodes int) {
+	s.logger.Info("updating rate hash ring", "new_members", fmt.Sprintf("%+v", newMembers))
+
+	nodes := make([]string, 0, len(newMembers))
+	for _, member := range newMembers {
+		for i := 0; i < numVNodes; i++ {
+			addr := fmt.Sprintf("%s:%d", member.Host, member.HTTPPort)
+			vNode := s.prependVNodePrefix(addr, i)
+			nodes = append(nodes, vNode)
+		}
+	}
+
 	s.rateMu.Lock()
 	defer s.rateMu.Unlock()
 
-	oldMembers := s.rateMembers
-	diff := diffMembers(oldMembers, newMembers)
-
-	hashRing := s.rateHashRing
-	for _, added := range diff.added {
-		hashRing = hashRing.AddWeightedNode(fmt.Sprintf("%s:%d", added.Host, added.HTTPPort), 1)
-	}
-
-	for _, removed := range diff.removed {
-		hashRing = hashRing.RemoveNode(fmt.Sprintf("%s:%d", removed.Host, removed.HTTPPort))
-	}
-
 	s.rateMembers = newMembers
-	s.rateHashRing = hashRing
+	s.rateHashRing = hashring.New(nodes)
 }
 
-func (s *Service) updateAllocMembersAndHashRing(newMembers []domain.Instance) {
+func (s *Service) updateAllocMembersAndHashRing(newMembers []domain.Instance, numVNodes int) {
+	s.logger.Info("updating alloc hash ring", "new_members", fmt.Sprintf("%+v", newMembers))
+
+	nodes := make([]string, 0, len(newMembers))
+	for _, member := range newMembers {
+		for i := 0; i < numVNodes; i++ {
+			addr := fmt.Sprintf("%s:%d", member.Host, member.HTTPPort)
+			vNode := s.prependVNodePrefix(addr, i)
+			nodes = append(nodes, vNode)
+		}
+	}
+
 	s.allocMu.Lock()
 	defer s.allocMu.Unlock()
 
-	oldMembers := s.allocMembers
-	diff := diffMembers(oldMembers, newMembers)
-
-	hashRing := s.allocHashRing
-	for _, added := range diff.added {
-		hashRing = hashRing.AddWeightedNode(fmt.Sprintf("%s:%d", added.Host, added.HTTPPort), 1)
-	}
-
-	for _, removed := range diff.removed {
-		hashRing = hashRing.RemoveNode(fmt.Sprintf("%s:%d", removed.Host, removed.HTTPPort))
-	}
-
 	s.allocMembers = newMembers
-	s.allocHashRing = hashRing
+	s.allocHashRing = hashring.New(nodes)
 }
 
-type membersDiff struct {
-	added   []domain.Instance
-	removed []domain.Instance
+func (s *Service) prependVNodePrefix(addr string, vNodeID int) string {
+	return fmt.Sprintf("vnode%d_%s", vNodeID, addr)
 }
 
-func diffMembers(oldMembers, newMembers []domain.Instance) membersDiff {
-	newMembersSet := make(map[domain.Instance]struct{}, len(newMembers))
-	for _, newMember := range newMembers {
-		newMembersSet[newMember] = struct{}{}
-	}
+func (s *Service) trimVNodePrefix(vNode string) string {
+	before, addr, ok := strings.Cut(vNode, "_")
 
-	oldMembersSet := make(map[domain.Instance]struct{}, len(oldMembers))
-	for _, oldMember := range oldMembers {
-		oldMembersSet[oldMember] = struct{}{}
-	}
+	s.logger.Info("trimVNodePrefix", "before", before, "addr", addr, "ok", ok)
 
-	diff := membersDiff{}
-	for _, oldMember := range oldMembers {
-		if _, found := newMembersSet[oldMember]; !found {
-			diff.removed = append(diff.removed, oldMember)
-		}
-	}
-
-	for _, newMember := range newMembers {
-		if _, found := oldMembersSet[newMember]; !found {
-			diff.added = append(diff.added, newMember)
-		}
-	}
-
-	return diff
+	return addr
 }

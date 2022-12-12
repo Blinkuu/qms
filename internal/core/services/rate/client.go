@@ -81,11 +81,14 @@ func (c *Client) Allow(ctx context.Context, addrs []string, namespace, resource 
 			continue
 		}
 
-		if resBody.Status != dto.StatusOK {
+		switch resBody.Status {
+		case dto.StatusOK:
+			return time.Duration(resBody.Result.WaitTime), resBody.Result.OK, nil
+		case dto.StatusAllowNotFound:
+			return 0, false, ErrNotFound
+		default:
 			return 0, false, fmt.Errorf("invalid status code: statusCode=%d", resBody.Status)
 		}
-
-		return time.Duration(resBody.Result.WaitTime), resBody.Result.OK, nil
 	}
 
 	return 0, false, errors.New("all attempts failed")

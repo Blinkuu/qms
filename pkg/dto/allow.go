@@ -1,5 +1,9 @@
 package dto
 
+const (
+	StatusAllowNotFound = 1002
+)
+
 type AllowRequestBody struct {
 	Namespace string `json:"namespace"`
 	Resource  string `json:"resource"`
