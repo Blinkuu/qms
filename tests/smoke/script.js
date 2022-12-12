@@ -43,8 +43,8 @@ export function TestRateAPI() {
   describe("QMS API", () => {
     describe("should return valid response from /api/v1/allow with valid payload", () => {
       // Given
-      const namespace = `namespace1`;
-      const resource = `resource1`;
+      const namespace = `namespace${1 + Math.floor(Math.random() * 3)}`;
+      const resource = `resource${1 + Math.floor(Math.random() * 10)}`;
       const payload = JSON.stringify({
         namespace: namespace,
         resource: resource,
@@ -106,7 +106,7 @@ export function TestAllocAPI() {
     describe("should return a valid response from /api/v1/view", () => {
       // Given
       const namespace = `namespace1`;
-      const resource = `resource1`;
+      const resource = `resource${1 + Math.floor(Math.random() * 5)}`;
       const url = `http://${__ENV.QMS_ADDR}/api/v1/view`;
       const payload = JSON.stringify({
         namespace: namespace,
@@ -163,7 +163,7 @@ export function TestAllocAPI() {
     describe("should return a valid response from /api/v1/alloc", () => {
       // Given
       const namespace = `namespace1`;
-      const resource = `resource1`;
+      const resource = `resource${1 + Math.floor(Math.random() * 5)}`;
       const url = `http://${__ENV.QMS_ADDR}/api/v1/alloc`;
       const payload = JSON.stringify({
         namespace: namespace,
@@ -222,7 +222,7 @@ export function TestAllocAPI() {
     describe("should return a valid response from /api/v1/free", () => {
       // Given
       const namespace = `namespace1`;
-      const resource = `resource1`;
+      const resource = `resource${1 + Math.floor(Math.random() * 5)}`;
       const url = `http://${__ENV.QMS_ADDR}/api/v1/free`;
       const payload = JSON.stringify({
         namespace: namespace,
