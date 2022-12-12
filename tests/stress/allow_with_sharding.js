@@ -45,7 +45,6 @@ export const options = {
     },
   },
   thresholds: {
-    // Stress
     "http_req_duration{scenario:stress}": ["p(99)<1000"],
     "http_req_failed{scenario:stress}": ["rate<0.01"],
   },
