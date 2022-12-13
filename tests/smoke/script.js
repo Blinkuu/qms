@@ -30,11 +30,16 @@ export const options = {
 };
 
 export function TestSmoke() {
-  TestRateAPI();
-  TestAllocAPI();
+  const params = {
+    headers: { "Content-Type": "application/json" },
+    timeout: "1s",
+  };
+
+  TestRateAPI(params);
+  TestAllocAPI(params);
 }
 
-export function TestRateAPI() {
+export function TestRateAPI(params) {
   const url = `http://${__ENV.QMS_ADDR}/api/v1/allow`;
 
   group("QMS API", () => {
@@ -49,7 +54,6 @@ export function TestRateAPI() {
           resource: resource,
           tokens: 1,
         });
-        const params = { headers: { "Content-Type": "application/json" } };
 
         // When
         const res = http.post(url, payload, params);
@@ -76,7 +80,6 @@ export function TestRateAPI() {
           resource: resource,
           tokens: 1,
         });
-        const params = { headers: { "Content-Type": "application/json" } };
 
         // When
         const res = http.post(url, payload, params);
@@ -95,7 +98,7 @@ export function TestRateAPI() {
   });
 }
 
-export function TestAllocAPI() {
+export function TestAllocAPI(params) {
   group("QMS API", () => {
     group("should return a valid response from /api/v1/view", () => {
       // Given
@@ -106,7 +109,6 @@ export function TestAllocAPI() {
         namespace: namespace,
         resource: resource,
       });
-      const params = { headers: { "Content-Type": "application/json" } };
 
       // When
       const res = http.post(url, payload, params);
@@ -137,7 +139,6 @@ export function TestAllocAPI() {
           resource: resource,
           tokens: 1,
         });
-        const params = { headers: { "Content-Type": "application/json" } };
 
         // When
         const res = http.post(url, payload, params);
@@ -166,7 +167,6 @@ export function TestAllocAPI() {
         tokens: 1,
         version: 0,
       });
-      const params = { headers: { "Content-Type": "application/json" } };
 
       // When
       const res = http.post(url, payload, params);
@@ -195,7 +195,6 @@ export function TestAllocAPI() {
           resource: resource,
           tokens: 1,
         });
-        const params = { headers: { "Content-Type": "application/json" } };
 
         // When
         const res = http.post(url, payload, params);
@@ -225,7 +224,6 @@ export function TestAllocAPI() {
         tokens: 1,
         version: 0,
       });
-      const params = { headers: { "Content-Type": "application/json" } };
 
       // When
       const res = http.post(url, payload, params);
@@ -254,7 +252,6 @@ export function TestAllocAPI() {
           resource: resource,
           tokens: 1,
         });
-        const params = { headers: { "Content-Type": "application/json" } };
 
         // When
         const res = http.post(url, payload, params);
