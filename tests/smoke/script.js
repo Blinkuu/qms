@@ -1,7 +1,4 @@
-import {
-  describe,
-  expect,
-} from "https://jslib.k6.io/k6chaijs/4.3.4.2/index.js";
+import { check, group } from "k6";
 import http from "k6/http";
 
 export const options = {
@@ -40,70 +37,67 @@ export function TestSmoke() {
 export function TestRateAPI() {
   const url = `http://${__ENV.QMS_ADDR}/api/v1/allow`;
 
-  describe("QMS API", () => {
-    describe("should return valid response from /api/v1/allow with valid payload", () => {
-      // Given
-      const namespace = `namespace${1 + Math.floor(Math.random() * 3)}`;
-      const resource = `resource${1 + Math.floor(Math.random() * 10)}`;
-      const payload = JSON.stringify({
-        namespace: namespace,
-        resource: resource,
-        tokens: 1,
-      });
-      const params = { headers: { "Content-Type": "application/json" } };
+  group("QMS API", () => {
+    group(
+      "should return valid response from /api/v1/allow with valid payload",
+      () => {
+        // Given
+        const namespace = `namespace${1 + Math.floor(Math.random() * 3)}`;
+        const resource = `resource${1 + Math.floor(Math.random() * 10)}`;
+        const payload = JSON.stringify({
+          namespace: namespace,
+          resource: resource,
+          tokens: 1,
+        });
+        const params = { headers: { "Content-Type": "application/json" } };
 
-      // When
-      const res = http.post(url, payload, params);
+        // When
+        const res = http.post(url, payload, params);
 
-      // Then
-      const expected = {
-        status: 1001,
-        msg: "ok",
-        result: {
-          wait_time: 0,
-          ok: true,
-        },
-      };
+        // Then
+        check(res, {
+          "is status 200": (r) => r.status === 200,
+          "qms status is 1001": (r) => r.json("status") === 1001,
+          "qms msg is ok": (r) => r.json("msg") === "ok",
+          "qms result.wait_time is greater or equal zero": (r) =>
+            r.json("result.wait_time") >= 0,
+        });
+      }
+    );
 
-      expect(res).to.have.validJsonBody();
-      expect(res.status).to.equal(200);
-      expect(JSON.parse(res.body)).to.deep.equal(expected);
-    });
+    group(
+      "should return valid response from /api/v1/allow with invalid payload",
+      () => {
+        // Given
+        const namespace = `unknown`;
+        const resource = `unknown`;
+        const payload = JSON.stringify({
+          namespace: namespace,
+          resource: resource,
+          tokens: 1,
+        });
+        const params = { headers: { "Content-Type": "application/json" } };
 
-    describe("should return valid response from /api/v1/allow with invalid payload", () => {
-      // Given
-      const namespace = `unknown`;
-      const resource = `unknown`;
-      const payload = JSON.stringify({
-        namespace: namespace,
-        resource: resource,
-        tokens: 1,
-      });
-      const params = { headers: { "Content-Type": "application/json" } };
+        // When
+        const res = http.post(url, payload, params);
 
-      // When
-      const res = http.post(url, payload, params);
-
-      // Then
-      const expected = {
-        status: 1002,
-        msg: "not found",
-        result: {
-          wait_time: 0,
-          ok: false,
-        },
-      };
-
-      expect(res).to.have.validJsonBody();
-      expect(res.status).to.equal(200);
-      expect(JSON.parse(res.body)).to.deep.equal(expected);
-    });
+        // Then
+        check(res, {
+          "is status 200": (r) => r.status === 200,
+          "qms status is 1002": (r) => r.json("status") === 1002,
+          "qms msg is not found": (r) => r.json("msg") === "not found",
+          "qms result.wait_time is zero": (r) =>
+            r.json("result.wait_time") === 0,
+          "qms result.ok is false": (r) => r.json("result.ok") === false,
+        });
+      }
+    );
   });
 }
 
 export function TestAllocAPI() {
-  describe("QMS API", () => {
-    describe("should return a valid response from /api/v1/view", () => {
+  group("QMS API", () => {
+    group("should return a valid response from /api/v1/view", () => {
       // Given
       const namespace = `namespace1`;
       const resource = `resource${1 + Math.floor(Math.random() * 5)}`;
@@ -118,49 +112,50 @@ export function TestAllocAPI() {
       const res = http.post(url, payload, params);
 
       // Then
-      const viewRes = JSON.parse(res.body);
-
-      expect(res).to.have.validJsonBody();
-      expect(res.status).to.equal(200);
-      expect(viewRes.status).to.equal(1001);
-      expect(viewRes.msg).to.equal("ok");
-      expect(viewRes.result.allocated).to.be.at.least(0);
-      expect(viewRes.result.capacity).to.be.at.least(0);
-      expect(viewRes.result.version).to.be.at.least(1);
-    });
-
-    describe("should return valid response from /api/v1/view with invalid payload", () => {
-      // Given
-      const namespace = `unknown`;
-      const resource = `unknown`;
-      const url = `http://${__ENV.QMS_ADDR}/api/v1/view`;
-      const payload = JSON.stringify({
-        namespace: namespace,
-        resource: resource,
-        tokens: 1,
+      check(res, {
+        "is status 200": (r) => r.status === 200,
+        "qms status is 1001": (r) => r.json("status") === 1001,
+        "qms msg is ok": (r) => r.json("msg") === "ok",
+        "qms result.allocated is greater or equal zero": (r) =>
+          r.json("result.allocated") >= 0,
+        "qms result.capacity is greater or equal zero": (r) =>
+          r.json("result.capacity") >= 0,
+        "qms result.version is greater or equal zero": (r) =>
+          r.json("result.version") >= 1,
       });
-      const params = { headers: { "Content-Type": "application/json" } };
-
-      // When
-      const res = http.post(url, payload, params);
-
-      // Then
-      const expected = {
-        status: 1002,
-        msg: "not found",
-        result: {
-          allocated: 0,
-          capacity: 0,
-          version: 0,
-        },
-      };
-
-      expect(res).to.have.validJsonBody();
-      expect(res.status).to.equal(200);
-      expect(JSON.parse(res.body)).to.deep.equal(expected);
     });
 
-    describe("should return a valid response from /api/v1/alloc", () => {
+    group(
+      "should return valid response from /api/v1/view with invalid payload",
+      () => {
+        // Given
+        const namespace = `unknown`;
+        const resource = `unknown`;
+        const url = `http://${__ENV.QMS_ADDR}/api/v1/view`;
+        const payload = JSON.stringify({
+          namespace: namespace,
+          resource: resource,
+          tokens: 1,
+        });
+        const params = { headers: { "Content-Type": "application/json" } };
+
+        // When
+        const res = http.post(url, payload, params);
+
+        // Then
+        check(res, {
+          "is status 200": (r) => r.status === 200,
+          "qms status is 1002": (r) => r.json("status") === 1002,
+          "qms msg is not found": (r) => r.json("msg") === "not found",
+          "qms result.allocated is zero": (r) =>
+            r.json("result.allocated") === 0,
+          "qms result.capacity is zero": (r) => r.json("result.capacity") === 0,
+          "qms result.version is zero": (r) => r.json("result.version") === 0,
+        });
+      }
+    );
+
+    group("should return a valid response from /api/v1/alloc", () => {
       // Given
       const namespace = `namespace1`;
       const resource = `resource${1 + Math.floor(Math.random() * 5)}`;
@@ -177,49 +172,49 @@ export function TestAllocAPI() {
       const res = http.post(url, payload, params);
 
       // Then
-      const allocRes = JSON.parse(res.body);
-
-      expect(res).to.have.validJsonBody();
-      expect(res.status).to.equal(200);
-      expect(allocRes.status).to.equal(1001);
-      expect(allocRes.msg).to.equal("ok");
-      expect(allocRes.result.remaining_tokens).to.be.at.least(0);
-      expect(allocRes.result.current_version).to.be.at.least(0);
-      expect(allocRes.result.ok).to.be.true;
-    });
-
-    describe("should return valid response from /api/v1/alloc with invalid payload", () => {
-      // Given
-      const namespace = `unknown`;
-      const resource = `unknown`;
-      const url = `http://${__ENV.QMS_ADDR}/api/v1/alloc`;
-      const payload = JSON.stringify({
-        namespace: namespace,
-        resource: resource,
-        tokens: 1,
+      check(res, {
+        "is status 200": (r) => r.status === 200,
+        "qms status is 1001": (r) => r.json("status") === 1001,
+        "qms msg is ok": (r) => r.json("msg") === "ok",
+        "qms result.remaining_tokens is greater or equal zero": (r) =>
+          r.json("result.remaining_tokens") >= 0,
+        "qms result.current_version is greater or equal zero": (r) =>
+          r.json("result.current_version") >= 0,
       });
-      const params = { headers: { "Content-Type": "application/json" } };
-
-      // When
-      const res = http.post(url, payload, params);
-
-      // Then
-      const expected = {
-        status: 1002,
-        msg: "not found",
-        result: {
-          remaining_tokens: 0,
-          current_version: 0,
-          ok: false,
-        },
-      };
-
-      expect(res).to.have.validJsonBody();
-      expect(res.status).to.equal(200);
-      expect(JSON.parse(res.body)).to.deep.equal(expected);
     });
 
-    describe("should return a valid response from /api/v1/free", () => {
+    group(
+      "should return valid response from /api/v1/alloc with invalid payload",
+      () => {
+        // Given
+        const namespace = `unknown`;
+        const resource = `unknown`;
+        const url = `http://${__ENV.QMS_ADDR}/api/v1/alloc`;
+        const payload = JSON.stringify({
+          namespace: namespace,
+          resource: resource,
+          tokens: 1,
+        });
+        const params = { headers: { "Content-Type": "application/json" } };
+
+        // When
+        const res = http.post(url, payload, params);
+
+        // Then
+        check(res, {
+          "is status 200": (r) => r.status === 200,
+          "qms status is 1002": (r) => r.json("status") === 1002,
+          "qms msg is not found": (r) => r.json("msg") === "not found",
+          "qms result.remaining_tokens is equal zero": (r) =>
+            r.json("result.remaining_tokens") === 0,
+          "qms result.current_version is equal zero": (r) =>
+            r.json("result.current_version") === 0,
+          "qms result.ok is false": (r) => r.json("result.ok") === false,
+        });
+      }
+    );
+
+    group("should return a valid response from /api/v1/free", () => {
       // Given
       const namespace = `namespace1`;
       const resource = `resource${1 + Math.floor(Math.random() * 5)}`;
@@ -236,46 +231,46 @@ export function TestAllocAPI() {
       const res = http.post(url, payload, params);
 
       // Then
-      const freeRes = JSON.parse(res.body);
-
-      expect(res).to.have.validJsonBody();
-      expect(res.status).to.equal(200);
-      expect(freeRes.status).to.equal(1001);
-      expect(freeRes.msg).to.equal("ok");
-      expect(freeRes.result.remaining_tokens).to.be.at.least(0);
-      expect(freeRes.result.current_version).to.be.at.least(0);
-      expect(freeRes.result.ok).to.be.true;
-    });
-
-    describe("should return valid response from /api/v1/free with invalid payload", () => {
-      // Given
-      const namespace = `unknown`;
-      const resource = `unknown`;
-      const url = `http://${__ENV.QMS_ADDR}/api/v1/free`;
-      const payload = JSON.stringify({
-        namespace: namespace,
-        resource: resource,
-        tokens: 1,
+      check(res, {
+        "is status 200": (r) => r.status === 200,
+        "qms status is 1001": (r) => r.json("status") === 1001,
+        "qms msg is ok": (r) => r.json("msg") === "ok",
+        "qms result.remaining_tokens is greater or equal zero": (r) =>
+          r.json("result.remaining_tokens") >= 0,
+        "qms result.current_version is greater or equal zero": (r) =>
+          r.json("result.current_version") >= 0,
       });
-      const params = { headers: { "Content-Type": "application/json" } };
-
-      // When
-      const res = http.post(url, payload, params);
-
-      // Then
-      const expected = {
-        status: 1002,
-        msg: "not found",
-        result: {
-          remaining_tokens: 0,
-          current_version: 0,
-          ok: false,
-        },
-      };
-
-      expect(res).to.have.validJsonBody();
-      expect(res.status).to.equal(200);
-      expect(JSON.parse(res.body)).to.deep.equal(expected);
     });
+
+    group(
+      "should return valid response from /api/v1/free with invalid payload",
+      () => {
+        // Given
+        const namespace = `unknown`;
+        const resource = `unknown`;
+        const url = `http://${__ENV.QMS_ADDR}/api/v1/free`;
+        const payload = JSON.stringify({
+          namespace: namespace,
+          resource: resource,
+          tokens: 1,
+        });
+        const params = { headers: { "Content-Type": "application/json" } };
+
+        // When
+        const res = http.post(url, payload, params);
+
+        // Then
+        check(res, {
+          "is status 200": (r) => r.status === 200,
+          "qms status is 1002": (r) => r.json("status") === 1002,
+          "qms msg is not found": (r) => r.json("msg") === "not found",
+          "qms result.remaining_tokens is equal zero": (r) =>
+            r.json("result.remaining_tokens") === 0,
+          "qms result.current_version is equal zero": (r) =>
+            r.json("result.current_version") === 0,
+          "qms result.ok is false": (r) => r.json("result.ok") === false,
+        });
+      }
+    );
   });
 }
