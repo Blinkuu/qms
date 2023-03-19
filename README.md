@@ -20,8 +20,8 @@
     - [Memberlist](#memberlist)
     - [Allow](#allow)
     - [View](#view)
-    - [alloc](#alloc)
-    - [free](#free)
+    - [Alloc](#alloc)
+    - [Free](#free)
 
 ## Overview
 
